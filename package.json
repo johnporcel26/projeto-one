@@ -1,0 +1,12 @@
+{
+  "name": "onepiece-idle-mmorpg",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev -w @onepiece/server\" \"npm run dev -w @onepiece/client\"",
+    "build": "npm run build -w @onepiece/shared && npm run build -w @onepiece/server && npm run build -w @onepiece/client",
+    "test": "npm run test -w @onepiece/server"
+  },
+  "devDependencies": { "concurrently": "^9.1.2" }
+}

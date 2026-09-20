@@ -1,0 +1,1 @@
+Essa Skill é usada a cada 45 segundos, ela fica em volta do personagem por 5 segundos, aplicar transparencia na bolha para ficar perfeitamente uniforme com o personagem

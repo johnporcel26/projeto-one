@@ -1,0 +1,1 @@
+Skill usada a cada 2 minutos e dura 25 segundos, aplicar um filtro azul e rosa no personagem

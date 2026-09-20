@@ -1,0 +1,326 @@
+{
+  "contentVersion": 25,
+  "updatedAt": "2026-09-20T18:25:38.591Z",
+  "items": [
+    {
+      "id": "item_gravel",
+      "displayName": "Cascalho",
+      "description": "Material comum.",
+      "category": "material",
+      "rarity": "COMMON",
+      "iconPath": "Itens/Cascalho/1.png",
+      "stackable": true,
+      "tradeable": true,
+      "buyValue": 0,
+      "sellValue": 4,
+      "effects": [],
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": false
+    },
+    {
+      "id": "item_soap",
+      "displayName": "Sabonete",
+      "description": "Material comum.",
+      "category": "material",
+      "rarity": "COMMON",
+      "iconPath": "Itens/Sabonete/1.png",
+      "stackable": true,
+      "tradeable": true,
+      "buyValue": 0,
+      "sellValue": 4,
+      "effects": [],
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": false
+    },
+    {
+      "id": "item_red_scarf",
+      "displayName": "Lenço Vermelho",
+      "description": "Equipamento simples.",
+      "category": "equipment",
+      "rarity": "UNCOMMON",
+      "iconPath": "Itens/Lencovermelho/1.png",
+      "stackable": true,
+      "tradeable": true,
+      "buyValue": 0,
+      "sellValue": 18,
+      "effects": [],
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": false
+    },
+    {
+      "id": "item_gold_ring",
+      "displayName": "Anel de Ouro",
+      "description": "Equipamento valioso.",
+      "category": "equipment",
+      "rarity": "RARE",
+      "iconPath": "Itens/Anel de Ouro/1.png",
+      "stackable": true,
+      "tradeable": true,
+      "buyValue": 0,
+      "sellValue": 30,
+      "effects": [],
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": false
+    },
+    {
+      "id": "item_potion_small",
+      "displayName": "Poção Menor",
+      "description": "Recupera 25% da vida.",
+      "category": "consumable",
+      "rarity": "COMMON",
+      "iconPath": "Itens/Poção Menor/1.png",
+      "stackable": true,
+      "tradeable": true,
+      "buyValue": 50,
+      "sellValue": 25,
+      "effects": [
+        {
+          "type": "RESTORE_HP_PERCENT",
+          "amount": 25
+        }
+      ],
+      "cooldownMs": 3000,
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": true
+    },
+    {
+      "id": "item_potion_large",
+      "displayName": "Poção Maior",
+      "description": "Recupera 50% da vida.",
+      "category": "consumable",
+      "rarity": "UNCOMMON",
+      "iconPath": "Itens/Poção Maior/1.png",
+      "stackable": true,
+      "tradeable": true,
+      "buyValue": 110,
+      "sellValue": 55,
+      "effects": [
+        {
+          "type": "RESTORE_HP_PERCENT",
+          "amount": 50
+        }
+      ],
+      "cooldownMs": 3000,
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": true
+    },
+    {
+      "id": "helicedrop",
+      "displayName": "Helice",
+      "description": "Uma Helice sem muitov alor comercial",
+      "category": "material",
+      "rarity": "COMMON",
+      "iconPath": "items/helicedrop.png",
+      "stackable": true,
+      "tradeable": true,
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": false,
+      "buyValue": 0,
+      "sellValue": 25,
+      "effects": [
+        {
+          "type": "RESTORE_HP_PERCENT",
+          "amount": 25
+        }
+      ],
+      "cooldownMs": 3000
+    }
+  ],
+  "fruits": [
+    {
+      "id": "fruit_sube_sube",
+      "displayName": "Sube Sube no Mi",
+      "description": "Pele escorregadia e bolhas protetoras.",
+      "rarity": "RARE",
+      "iconPath": "Akumanomi/Sube/SubeSube.png",
+      "tradeable": true,
+      "droppable": true,
+      "stats": {},
+      "skillIds": [
+        "sube_bubbles",
+        "sube_defense",
+        "sube_evasion",
+        "sube_placeholder"
+      ],
+      "marketable": true,
+      "sellableForBerries": false,
+      "sellableForRubies": false,
+      "acceptsOffers": true,
+      "skillStatuses": [
+        "AVAILABLE",
+        "AVAILABLE",
+        "AVAILABLE",
+        "PLACEHOLDER"
+      ]
+    },
+    {
+      "id": "fruit_guro_guro",
+      "displayName": "Guro Guro no Mi",
+      "description": "Poder giratório de impacto.",
+      "rarity": "EPIC",
+      "iconPath": "Akumanomi/Guro/598d5176-ae03-4186-947c-581ce2a5d5c9.png",
+      "tradeable": true,
+      "droppable": true,
+      "stats": {},
+      "skillIds": [
+        "guro_blast",
+        "guro_spin",
+        "guro_crush",
+        "guro_placeholder"
+      ],
+      "marketable": true,
+      "sellableForBerries": false,
+      "sellableForRubies": false,
+      "acceptsOffers": true,
+      "skillStatuses": [
+        "AVAILABLE",
+        "AVAILABLE",
+        "AVAILABLE",
+        "PLACEHOLDER"
+      ]
+    },
+    {
+      "id": "fruit_mogu_mogu",
+      "displayName": "Mogu Mogu no Mi",
+      "description": "Poder de escavação.",
+      "rarity": "RARE",
+      "iconPath": "Akumanomi/Mogu/1.png",
+      "tradeable": true,
+      "droppable": true,
+      "stats": {},
+      "skillIds": [
+        "mogu_dig",
+        "mogu_dash",
+        "mogu_strike",
+        "mogu_placeholder"
+      ],
+      "marketable": true,
+      "sellableForBerries": false,
+      "sellableForRubies": false,
+      "acceptsOffers": true,
+      "skillStatuses": [
+        "AVAILABLE",
+        "AVAILABLE",
+        "AVAILABLE",
+        "PLACEHOLDER"
+      ]
+    },
+    {
+      "id": "fruit_hito_hito",
+      "displayName": "Hito Hito no Mi",
+      "description": "Transformação humana.",
+      "rarity": "EPIC",
+      "iconPath": "Akumanomi/Hito/1.png",
+      "tradeable": true,
+      "droppable": true,
+      "stats": {},
+      "skillIds": [
+        "hito_form",
+        "hito_guard",
+        "hito_strike",
+        "hito_placeholder"
+      ],
+      "marketable": true,
+      "sellableForBerries": false,
+      "sellableForRubies": false,
+      "acceptsOffers": true,
+      "skillStatuses": [
+        "AVAILABLE",
+        "AVAILABLE",
+        "AVAILABLE",
+        "PLACEHOLDER"
+      ]
+    }
+  ],
+  "enemies": [
+    {
+      "id": "enemy_alvida",
+      "displayName": "Alvida",
+      "huntId": "hunt_alvida_forest"
+    },
+    {
+      "id": "enemy_buffalo",
+      "displayName": "Buffalo",
+      "huntId": "hunt_buffalo_beach"
+    }
+  ],
+  "lootTables": {
+    "enemy_alvida": [
+      {
+        "itemId": "item_gravel",
+        "chanceBps": 10000,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "item_soap",
+        "chanceBps": 2400,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "item_potion_small",
+        "chanceBps": 1500,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "item_red_scarf",
+        "chanceBps": 700,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "item_gold_ring",
+        "chanceBps": 300,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "fruit_sube_sube",
+        "chanceBps": 100,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "helicedrop",
+        "chanceBps": 10000,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      }
+    ],
+    "enemy_buffalo": [
+      {
+        "itemId": "item_gravel",
+        "chanceBps": 6500,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "item_potion_small",
+        "chanceBps": 3500,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "fruit_guro_guro",
+        "chanceBps": 100,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "helicedrop",
+        "chanceBps": 10000,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      }
+    ]
+  }
+}

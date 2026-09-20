@@ -1,0 +1,5 @@
+:root{
+  --pirate-navy:#102a43;--pirate-sea:#153e4f;--pirate-red:#9e2f2f;--pirate-gold:#d6a646;
+  --pirate-wood:#5e3d2c;--pirate-parchment:#e8d5a5;--pirate-cream:#f4e8c7;--pirate-green:#3e8374;--pirate-dark:#0a151d;
+  --hud-border:color-mix(in srgb,var(--pirate-gold) 64%,#6d4d2f);--hud-shadow:0 9px 22px #0610188c;--hud-radius:10px;--hud-gap:clamp(10px,1.25vw,20px);
+}

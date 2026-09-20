@@ -1,0 +1,1 @@
+As arvores tem colisão, e são compativeis com o mapa

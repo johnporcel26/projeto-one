@@ -1,0 +1,15 @@
+{
+  "enemy": "buffalo",
+  "frameSize": { "width": 1254, "height": 1254 },
+  "origin": { "x": 0.5, "y": 1.0 },
+  "animations": {
+    "BUFFALO_IDLE_DOWN": { "path": "idle/down", "frames": 4, "fps": 5, "loop": true },
+    "BUFFALO_IDLE_UP": { "path": "idle/up", "frames": 4, "fps": 5, "loop": true },
+    "BUFFALO_IDLE_SIDE": { "path": "idle/side", "frames": 4, "fps": 5, "loop": true, "flipXForLeft": true },
+    "BUFFALO_WALK_DOWN": { "path": "walk/down", "frames": 5, "fps": 8, "loop": true },
+    "BUFFALO_WALK_UP": { "path": "walk/up", "frames": 5, "fps": 8, "loop": true },
+    "BUFFALO_WALK_SIDE": { "path": "walk/side", "frames": 5, "fps": 8, "loop": true, "flipXForLeft": true },
+    "BUFFALO_ATTACK_DOWN": { "path": "attack/down", "frames": 6, "fps": 8, "loop": false },
+    "BUFFALO_SPECIAL_SPIN": { "path": "special_spin", "frames": 8, "fps": 12, "loop": true }
+  }
+}
