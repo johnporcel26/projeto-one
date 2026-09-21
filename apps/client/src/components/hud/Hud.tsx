@@ -985,6 +985,7 @@ function InventoryPanel({
         },
       }),
     );
+  const sellAll = () => window.dispatchEvent(new CustomEvent("game-intent", { detail: { type: "sellAll", excludedItemIds: [...locked] } }));
   const action = (
     id: ItemId,
     kind: "info" | "equip" | "unequip" | "sell" | "link" | "lock",
@@ -1027,13 +1028,7 @@ function InventoryPanel({
       {!searchOnly && (
         <div className="inventory-actions">
           <button
-            onClick={() =>
-              sell(
-                stacks
-                  .filter((stack) => !locked.has(stack.itemId))
-                  .map((stack) => stack.itemId),
-              )
-            }
+            onClick={sellAll}
           >
             VENDER TUDO
           </button>

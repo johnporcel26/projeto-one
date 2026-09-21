@@ -101,6 +101,7 @@ export type ClientIntent =
  | { type: "enterHunt"; huntId: HuntDefinition["id"] }
  | { type: "leaveHunt" }
  | { type: "sellItems"; itemIds: ItemId[] }
+ | { type: "sellAll"; excludedItemIds: ItemId[] }
  | { type: "buyItem"; itemId: ItemId }
  | { type: "depositItem"; itemId: ItemId; quantity: number }
  | { type: "withdrawItem"; itemId: ItemId; quantity: number }
