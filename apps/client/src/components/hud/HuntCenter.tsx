@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { type GameSnapshot } from "@onepiece/shared";
-const portrait = (enemyId: string) => enemyId === "enemy_buffalo" ? "/enemies/buffalo/idle/down/idle_down_01.png" : "/Monsters/Alvida/Idle/Frente/1.png";
+const portraits: Record<string, string> = {
+  enemy_alvida: "/Monsters/Alvida/Idle/Frente/1.png",
+  enemy_buffalo: "/enemies/buffalo/idle/down/idle_down_01.png",
+  enemy_wapol: "/enemies/wapol/idle/down/1.png",
+};
+const portrait = (enemyId: string) => portraits[enemyId] ?? portraits.enemy_alvida;
 const pct = (value: number) => `${(value / 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 export function HuntCenter({ snapshot, onIntent, onClose }: { snapshot?: GameSnapshot; onIntent: (intent: unknown) => void; onClose: () => void }): JSX.Element {
   const [query, setQuery] = useState(""); const [selectedId, setSelectedId] = useState<string | null>(null); const catalog = snapshot?.contentCatalog.public; const hunts = useMemo(() => (catalog?.hunts ?? []).filter((hunt) => { const enemy = catalog?.enemies.find((entry) => entry.id === hunt.mainEnemyId); return `${hunt.displayName} ${enemy?.displayName ?? ""}`.toLowerCase().includes(query.toLowerCase()); }), [catalog, query]); const selected = catalog?.hunts.find((hunt) => hunt.id === selectedId) ?? null; const active = snapshot?.huntAnalyzer.status === "ACTIVE" ? snapshot.huntAnalyzer.huntId : null;
