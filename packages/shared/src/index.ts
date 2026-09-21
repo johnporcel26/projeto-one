@@ -91,6 +91,7 @@ export type ClientIntent =
  | { type: "equipFruit"; fruitId: FruitId }
  | { type: "unequipFruit" }
  | { type: "enterHunt"; huntId: HuntDefinition["id"] }
+ | { type: "leaveHunt" }
  | { type: "sellItems"; itemIds: ItemId[] }
  | { type: "buyItem"; itemId: ItemId }
  | { type: "depositItem"; itemId: ItemId; quantity: number }

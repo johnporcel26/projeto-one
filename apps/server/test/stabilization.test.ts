@@ -20,6 +20,6 @@ test("auto-hunt planner is fruit-agnostic and defaults to basic attack only", ()
   const planner = new AutoHuntSkillPlanner(); assert.equal(planner.chooseSkill(null, []), null); assert.equal(planner.chooseSkill("fruit_sube_sube", ["sube_bubbles"]), null); assert.equal(planner.chooseSkill("fruit_guro_guro", ["guro_blast"]), null);
 });
 test("Guro spin has server cooldown and exactly four one-second ticks", () => {
-  const session = new GameSession("spin"); session.player.gainFruit("fruit_guro_guro"); session.player.equipFruit("fruit_guro_guro"); const enemy = session.enemies[0]; session.player.x = enemy.snapshot.x; session.player.y = enemy.snapshot.y;
+  const session = new GameSession("spin"); session.handle({ type: "enterHunt", huntId: "hunt_buffalo_beach" }, 500); session.player.gainFruit("fruit_guro_guro"); session.player.equipFruit("fruit_guro_guro"); const enemy = session.enemies[0]; session.player.x = enemy.snapshot.x; session.player.y = enemy.snapshot.y;
   session.handle({ type: "useSkill", skillId: "guro_spin" }, 1000); const hp = enemy.snapshot.hp; [1000, 2000, 3000, 4000].forEach((now) => session.tick(now)); assert.equal(enemy.snapshot.hp, hp - 56); session.tick(5000); assert.equal(enemy.snapshot.hp, hp - 56);
 });

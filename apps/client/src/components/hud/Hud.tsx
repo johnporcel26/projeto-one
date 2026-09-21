@@ -36,6 +36,7 @@ import { useGameUi, type PanelId } from "../../ui/GameUiStore";
 import { PremiumMarketPanel } from "./MarketPanel";
 import { CatalogPanel } from "./CatalogPanel";
 import { DepositPanel } from "./DepositPanel";
+import { HuntCenter } from "./HuntCenter";
 import "./hunt.css";
 const root = "/";
 const assets: Record<string, string> = new Proxy<Record<string, string>>({ ted: `${root}personagem/Player/idle/1.png` }, { get: (known, id) => known[id as string] ?? `${root}${itemDefinitions[id as string]?.icon ?? fruitDefinitions[id as string]?.icon ?? ""}` });
@@ -107,7 +108,7 @@ const nav: readonly {
   status: "available" | "soon";
 }[] = [
   { id: "catalog", label: "Catálogo", icon: BookOpen, status: "available" },
-  { id: "deposit", label: "Depósito", icon: Box, status: "soon" },
+  { id: "deposit", label: "Depósito", icon: Box, status: "available" },
   { id: "inventory", label: "Bolsa", icon: Backpack, status: "available" },
   { id: "hunts", label: "Hunts", icon: Compass, status: "available" },
   { id: "bot", label: "Bot", icon: Bot, status: "available" },
@@ -687,17 +688,7 @@ function PanelContent({
         </div>
       </div>
     );
-  if (panel === "hunts")
-    return (
-      <HuntPanel
-        playerLevel={player?.level ?? 1}
-        current={snapshot?.area === "forest_alvida"}
-        onEnter={(huntId) => {
-          onIntent({ type: "enterHunt", huntId });
-          onClose();
-        }}
-      />
-    );
+  if (panel === "hunts") return <HuntCenter snapshot={snapshot} onIntent={onIntent} onClose={onClose} />;
   if (panel === "bot")
     return (
       <div className="settings-list">
