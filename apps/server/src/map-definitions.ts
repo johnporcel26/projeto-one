@@ -11,7 +11,7 @@ export type CollisionShape = { kind: "rectangle"; x: number; y: number; width: n
 export interface SpawnPoint extends TiledPoint { id: string; }
 export interface MapDefinition { readonly id: MapId; readonly width: number; readonly height: number; readonly walkable: readonly CollisionShape[]; readonly collision: readonly CollisionShape[]; readonly water: readonly CollisionShape[]; readonly playerSpawn: SpawnPoint; readonly enemySpawns: readonly SpawnPoint[]; readonly npcSpawns: readonly SpawnPoint[]; readonly portals: readonly SpawnPoint[]; readonly safeZones: readonly CollisionShape[]; readonly decorations: readonly CollisionShape[]; }
 
-const mapFiles: Record<MapId, string> = { pirate_ship: "pirate_ship.json", forest_alvida: "forest_alvida.json", beach_buffalo: "beach_buffalo.json" };
+const mapFiles: Record<MapId, string> = { pirate_ship: "pirate_ship.json", forest_alvida: "forest_alvida.json", beach_buffalo: "beach_buffalo.json", ice_mountain: "ice_mountain.json" };
 const validLayerNames = new Set<ObjectLayerName>(["COLLISION", "WATER", "PLAYER_SPAWN", "ENEMY_SPAWN", "NPC", "PORTAL", "SAFE_ZONE", "DECORATION"]);
 const PLAYER_FEET_RADIUS = 12;
 function objectShape(object: TiledObject): CollisionShape | undefined { if (object.polygon?.length && object.polygon.length >= 3) return { kind: "polygon", points: object.polygon.map((point) => ({ x: object.x + point.x, y: object.y + point.y })) }; if (object.ellipse) return { kind: "circle", x: object.x + (object.width ?? 0) / 2, y: object.y + (object.height ?? 0) / 2, radiusX: (object.width ?? 0) / 2, radiusY: (object.height ?? 0) / 2 }; if ((object.width ?? 0) > 0 && (object.height ?? 0) > 0) return { kind: "rectangle", x: object.x, y: object.y, width: object.width!, height: object.height! }; return undefined; }
@@ -28,5 +28,5 @@ export function getPlayerSpawn(area: MapId): SpawnPoint { return mapDefinitions[
 export function getEnemySpawnPoints(area: MapId): readonly SpawnPoint[] { return mapDefinitions[area].enemySpawns; }
 function validateMap(definition: MapDefinition): void { if (!definition.walkable.length) throw new Error(`[MapData] ${definition.id} requires a WALKABLE object in COLLISION.`); if (isBlocked(definition.id, definition.playerSpawn.x, definition.playerSpawn.y)) throw new Error(`[MapData] ${definition.id} PLAYER_SPAWN is blocked.`); for (const point of definition.enemySpawns) if (isBlocked(definition.id, point.x, point.y)) throw new Error(`[MapData] ${definition.id} ENEMY_SPAWN ${point.id} is blocked.`); }
 /** Loaded and validated once at server start-up. */
-export const mapDefinitions: Record<MapId, MapDefinition> = Object.freeze({ pirate_ship: loadMap("pirate_ship"), forest_alvida: loadMap("forest_alvida"), beach_buffalo: loadMap("beach_buffalo") });
+export const mapDefinitions: Record<MapId, MapDefinition> = Object.freeze({ pirate_ship: loadMap("pirate_ship"), forest_alvida: loadMap("forest_alvida"), beach_buffalo: loadMap("beach_buffalo"), ice_mountain: loadMap("ice_mountain") });
 Object.values(mapDefinitions).forEach(validateMap);

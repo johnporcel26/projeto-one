@@ -237,6 +237,22 @@
         "AVAILABLE",
         "PLACEHOLDER"
       ]
+    },
+    {
+      "id": "fruit_baku_baku",
+      "displayName": "Baku Baku no Mi",
+      "description": "Poder de canhão, mordida e blindagem.",
+      "rarity": "EPIC",
+      "iconPath": "Akumanomi/Baku/215d20df-753d-442e-bd66-b18a831a3d1a.png",
+      "tradeable": true,
+      "droppable": true,
+      "marketable": true,
+      "sellableForBerries": false,
+      "sellableForRubies": false,
+      "acceptsOffers": true,
+      "stats": {},
+      "skillIds": ["baku_cannon", "baku_bite", "baku_armor", "baku_placeholder"],
+      "skillStatuses": ["AVAILABLE", "AVAILABLE", "AVAILABLE", "LOCKED"]
     }
   ],
   "enemies": [
@@ -249,6 +265,11 @@
       "id": "enemy_buffalo",
       "displayName": "Buffalo",
       "huntId": "hunt_buffalo_beach"
+    },
+    {
+      "id": "enemy_wapol",
+      "displayName": "Wapol",
+      "huntId": "hunt_ice_mountain"
     }
   ],
   "lootTables": {
@@ -321,6 +342,11 @@
         "minQuantity": 1,
         "maxQuantity": 1
       }
+    ],
+    "enemy_wapol": [
+      { "itemId": "item_gravel", "chanceBps": 6500, "minQuantity": 1, "maxQuantity": 1 },
+      { "itemId": "item_potion_large", "chanceBps": 3500, "minQuantity": 1, "maxQuantity": 1 },
+      { "itemId": "fruit_baku_baku", "chanceBps": 100, "minQuantity": 1, "maxQuantity": 1 }
     ]
   }
 }

@@ -1,0 +1,18 @@
+{
+  "width": 1600,
+  "height": 1100,
+  "layers": [
+    { "name": "COLLISION", "type": "objectgroup", "objects": [
+      { "name": "WALKABLE", "x": 0, "y": 0, "width": 1600, "height": 1100 },
+      { "name": "ice_tree_1", "x": 275, "y": 185, "width": 72, "height": 46 },
+      { "name": "ice_tree_2", "x": 1215, "y": 240, "width": 72, "height": 46 },
+      { "name": "ice_tree_3", "x": 720, "y": 785, "width": 72, "height": 46 },
+      { "name": "ice_rock_1", "x": 500, "y": 400, "width": 56, "height": 38 },
+      { "name": "ice_rock_2", "x": 1050, "y": 600, "width": 56, "height": 38 },
+      { "name": "ice_rock_3", "x": 350, "y": 760, "width": 56, "height": 38 }
+    ] },
+    { "name": "PLAYER_SPAWN", "type": "objectgroup", "objects": [{ "name": "ice_entry", "x": 800, "y": 920 }] },
+    { "name": "ENEMY_SPAWN", "type": "objectgroup", "objects": [{ "name": "wapol_peak", "x": 800, "y": 430 }] },
+    { "name": "DECORATION", "type": "objectgroup", "objects": [] }
+  ]
+}

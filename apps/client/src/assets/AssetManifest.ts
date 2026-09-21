@@ -6,6 +6,9 @@ export const Asset = {
   buffalo: (animation: "idle" | "walk", direction: "down" | "up" | "side", frame: number) => `${root}enemies/buffalo/${animation}/${direction}/${animation}_${direction}_${String(frame).padStart(2, "0")}.png`,
   buffaloAttackDown: (frame: number) => `${root}enemies/buffalo/attack/down/attack_down_${String(frame).padStart(2, "0")}.png`,
   buffaloSpecialSpin: (frame: number) => `${root}enemies/buffalo/special_spin/spin_${String(frame).padStart(2, "0")}.png`,
+  iceFrames: [1, 2, 3, 4].map((n) => `${root}Mapas/Gelo/solo/${n}.png`),
+  wapol: (animation: "idle" | "walk", direction: "down" | "up" | "side", frame: number) => `${root}enemies/wapol/${animation}/${direction}/${frame}.png`,
+  wapolAttack: (frame: number) => `${root}enemies/wapol/attack/down/${frame}.png`,
   tree: (id: string) => `${root}Mapas/Floresta/arvores/${id}.png`,
   item: (name: string) => `${root}Itens/${name}/1.png`, healingCounter: `${root}Itens/balcao/9de2a706-fb1a-44bf-bd89-986481a132fe.png`, fruit: (name: string) => `${root}Akumanomi/${name}/1.png`,
   bubbles: (frame: number) => `${root}personagem/Subeskill/Bolhas/${frame}.png`, shield: (frame: number) => `${root}personagem/Subeskill/Defense/${frame}.png`, guroExplosion: (frame: number) => `${root}effects/guro/explosion_${String(frame).padStart(2, "0")}.png`

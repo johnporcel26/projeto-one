@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import type { CombatFeedbackSnapshot, Direction, EnemySnapshot, GameSnapshot, NpcSnapshot, PlayerSnapshot } from "@onepiece/shared";
 import { Asset } from "../assets/AssetManifest";
 import { bridge } from "./GameBridge";
-import { alvidaFrame, buffaloFrame, oldDrunkFrame, tedFrame, type AnimationFrame } from "./DirectionalAnimation";
+import { alvidaFrame, buffaloFrame, oldDrunkFrame, tedFrame, wapolFrame, type AnimationFrame } from "./DirectionalAnimation";
 
 const treeIds = ["d4b57d88-a0bb-4355-bfe0-567a4ff6356b", "d1880c40-fc8a-46e5-b9f4-50b4ccb1cf06", "2e588455-f05a-4012-be2f-7712a710d827", "25032c55-d8c5-4fb8-9ebf-218d4577867a"];
 type Visual = { sprite: Phaser.GameObjects.Image; label?: Phaser.GameObjects.Text; lastTexture: string };
@@ -40,6 +40,7 @@ export class WorldScene extends Phaser.Scene {
     }
     Asset.shipFrames.forEach((path, index) => this.load.image(`ship_${index + 1}`, path));
     Asset.beachFrames.forEach((path, index) => this.load.image(`beach_${index + 1}`, path));
+    Asset.iceFrames.forEach((path, index) => this.load.image(`ice_${index + 1}`, path));
     treeIds.forEach((id) => this.load.image(`tree_${id}`, Asset.tree(id)));
     for (const state of ["idle", "walk", "attack", "death"] as const) for (let frame = 1; frame <= 6; frame++) this.load.image(`ted_${state}_${frame}`, Asset.ted(state, frame));
     for (const direction of ["Costa", "Lado"] as const) for (let frame = 1; frame <= 5; frame++) this.load.image(`ted_idle_${direction}_${frame}`, Asset.tedIdleDirectional(direction, frame));
@@ -47,6 +48,8 @@ export class WorldScene extends Phaser.Scene {
     for (let frame = 1; frame <= 3; frame++) this.load.image(`alvida_Attack_${frame}`, Asset.alvidaAttack(frame));
     for (const animation of ["idle", "walk"] as const) for (const direction of ["down", "up", "side"] as const) for (let frame = 1; frame <= (animation === "idle" ? 4 : 5); frame++) this.load.image(`buffalo_${animation}_${direction}_${frame}`, Asset.buffalo(animation, direction, frame));
     for (let frame = 1; frame <= 6; frame++) this.load.image(`buffalo_attack_${frame}`, Asset.buffaloAttackDown(frame));
+    for (const animation of ["idle", "walk"] as const) for (const direction of ["down", "up", "side"] as const) for (let frame = 1; frame <= 6; frame++) this.load.image(`wapol_${animation}_${direction}_${frame}`, Asset.wapol(animation, direction, frame));
+    for (let frame = 1; frame <= 6; frame++) this.load.image(`wapol_attack_${frame}`, Asset.wapolAttack(frame));
   }
 
   create(): void {
@@ -69,7 +72,7 @@ export class WorldScene extends Phaser.Scene {
 
   update(time: number): void {
     this.fillViewportBackground();
-    this.background?.setTexture(this.area === "pirate_ship" ? `ship_${Math.floor(time / 150) % 4 + 1}` : this.area === "beach_buffalo" ? `beach_${Math.floor(time / 180) % 4 + 1}` : "ground");
+    this.background?.setTexture(this.area === "pirate_ship" ? `ship_${Math.floor(time / 150) % 4 + 1}` : this.area === "beach_buffalo" ? `beach_${Math.floor(time / 180) % 4 + 1}` : this.area === "ice_mountain" ? `ice_${Math.floor(time / 380) % 4 + 1}` : "ground");
     this.renderAnimatedVisuals(time);
     if (!this.cursors || !this.keys || (document.activeElement as HTMLElement | null)?.matches("input, textarea, select")) return;
     const active = this.activeDirection();
@@ -87,7 +90,7 @@ export class WorldScene extends Phaser.Scene {
   private renderAnimatedVisuals(time: number): void {
     const heldDirection = this.activeDirection();
     if (this.ted && this.player) { const state = this.player.state === "DEAD" ? "DEAD" : this.player.state === "ATTACK" ? "ATTACK" : heldDirection || time < this.playerWalkUntil ? "WALK" : "IDLE"; this.applyVisual(this.ted, this.player.x, this.player.y, tedFrame(state, heldDirection ?? this.player.direction, time)); const effects = this.player.statusEffectEndsAt; if ((effects.guro_spin ?? 0) > Date.now()) { this.ted.sprite.setAngle((time * .7) % 360).setTint(0xffc46b); } else { this.ted.sprite.setAngle(0); if ((effects.sube_evasion ?? 0) > Date.now()) this.ted.sprite.setTint(time % 360 < 180 ? 0xc6f7ff : 0x81d8ff); else if ((effects.sube_defense ?? 0) > Date.now()) this.ted.sprite.setTint(0x8ebcff); else this.ted.sprite.clearTint(); } }
-    this.enemies.forEach(({ visual, healthBar, snapshot }) => { visual.sprite.setAlpha(snapshot.state === "DEAD" ? .3 : 1); this.applyVisual(visual, snapshot.x, snapshot.y, snapshot.type === "enemy_buffalo" ? buffaloFrame(snapshot.state, snapshot.direction, time) : alvidaFrame(snapshot.state, snapshot.direction, time)); this.drawEnemyHealth(healthBar, snapshot, visual.sprite.x, visual.sprite.y); });
+    this.enemies.forEach(({ visual, healthBar, snapshot }) => { visual.sprite.setAlpha(snapshot.state === "DEAD" ? .3 : 1); this.applyVisual(visual, snapshot.x, snapshot.y, snapshot.type === "enemy_wapol" ? wapolFrame(snapshot.state, snapshot.direction, time) : snapshot.type === "enemy_buffalo" ? buffaloFrame(snapshot.state, snapshot.direction, time) : alvidaFrame(snapshot.state, snapshot.direction, time)); this.drawEnemyHealth(healthBar, snapshot, visual.sprite.x, visual.sprite.y); });
     if (this.oldDrunk && this.player) this.renderOldDrunk(this.oldDrunk.snapshot, this.player.x, this.player.y, time);
   }
 
@@ -110,7 +113,7 @@ export class WorldScene extends Phaser.Scene {
     if (npc && this.area === "pirate_ship") this.cacheOldDrunk(npc); else if (this.oldDrunk) { this.oldDrunk.visual.sprite.destroy(); this.oldDrunk.visual.label?.destroy(); this.oldDrunk = undefined; }
   }
 
-  private cacheEnemy(enemy: EnemySnapshot): void { if (this.area === "pirate_ship") return; const existing = this.enemies.get(enemy.id); if (existing) { existing.snapshot = enemy; return; } const buffalo = enemy.type === "enemy_buffalo"; const sprite = this.add.image(enemy.x, enemy.y, buffalo ? "buffalo_idle_down_1" : "alvida_Idle_Frente_1").setDisplaySize(buffalo ? 165 : 118, buffalo ? 165 : 118).setOrigin(.5, 1); const healthBar = this.add.graphics().setDepth(enemy.y + 4); this.enemies.set(enemy.id, { visual: { sprite, lastTexture: "" }, healthBar, snapshot: enemy }); }
+  private cacheEnemy(enemy: EnemySnapshot): void { if (this.area === "pirate_ship") return; const existing = this.enemies.get(enemy.id); if (existing) { existing.snapshot = enemy; return; } const buffalo = enemy.type === "enemy_buffalo", wapol = enemy.type === "enemy_wapol"; const sprite = this.add.image(enemy.x, enemy.y, wapol ? "wapol_idle_down_1" : buffalo ? "buffalo_idle_down_1" : "alvida_Idle_Frente_1").setDisplaySize(wapol ? 190 : buffalo ? 165 : 118, wapol ? 190 : buffalo ? 165 : 118).setOrigin(.5, 1); const healthBar = this.add.graphics().setDepth(enemy.y + 4); this.enemies.set(enemy.id, { visual: { sprite, lastTexture: "" }, healthBar, snapshot: enemy }); }
   private drawEnemyHealth(bar: Phaser.GameObjects.Graphics, enemy: EnemySnapshot, renderedX = enemy.x, renderedY = enemy.y): void { const width = enemy.type === "enemy_buffalo" ? 92 : 72; const x = renderedX - width / 2; const y = renderedY - (enemy.type === "enemy_buffalo" ? 156 : 116); bar.clear(); if (enemy.state === "DEAD") return; bar.fillStyle(0x091015, .95).fillRoundedRect(x - 2, y - 2, width + 4, 10, 3); bar.fillStyle(0x421f25, 1).fillRect(x, y, width, 6); bar.fillStyle(0x49b86a, 1).fillRect(x, y, width * Math.max(0, enemy.hp / enemy.maxHp), 6); bar.setDepth(renderedY + 5); }
   private playGuroExplosion(x: number, y: number): void { const fx = this.add.image(x, y, "guro_explosion_1").setDisplaySize(190, 190).setOrigin(.5).setDepth(2990); let frame = 1; this.time.addEvent({ delay: 120, repeat: 2, callback: () => { frame += 1; if (frame <= 3) fx.setTexture(`guro_explosion_${frame}`); } }); this.tweens.add({ targets: fx, alpha: 0, scale: 1.35, duration: 480, onComplete: () => fx.destroy() }); }
   private showCombatFeedback(entry: CombatFeedbackSnapshot): void { if (this.displayedFeedback.has(entry.id)) return; this.displayedFeedback.add(entry.id); if (this.displayedFeedback.size > 120) this.displayedFeedback.clear(); if (entry.text.includes("EXPLOSÃO")) this.playGuroExplosion(entry.x, entry.y); if (entry.kind === "status" && entry.target === "player") { const skill = entry.text.includes("BOLHAS") ? "sube_bubbles" : entry.text.includes("DEFESA") ? "sube_defense" : entry.text.includes("EVASÃO") ? "sube_evasion" : undefined; if (skill) this.playSubeFx(skill); } const critical = entry.kind === "critical"; const color = critical ? "#ffe16b" : entry.kind === "dodge" ? "#75e8ff" : entry.kind === "status" ? "#a9f1b7" : entry.target === "player" ? "#ff746c" : "#ffd39a"; const label = this.add.text(entry.x, entry.y, entry.text, { fontFamily: "Trebuchet MS", fontSize: critical ? "34px" : entry.target === "player" ? "28px" : "26px", fontStyle: "bold", color, stroke: "#071116", strokeThickness: critical ? 7 : 6, shadow: { offsetX: 0, offsetY: 3, color: "#000000", blur: 2, fill: true } }).setOrigin(.5).setDepth(3000).setScale(.55); this.tweens.add({ targets: label, y: entry.y - (critical ? 62 : 52), alpha: 0, scale: critical ? 1.42 : 1.2, duration: critical ? 980 : 850, ease: "Back.Out", onComplete: () => label.destroy() }); }
