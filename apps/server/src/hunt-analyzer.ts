@@ -6,9 +6,9 @@ const increment = <T extends string>(record: Partial<Record<T, number>>, key: T,
 
 /** Observes authoritative game events; it never grants rewards or changes combat. */
 export class HuntAnalyzer {
-  private current = empty(); private last = empty(); private sequence = 0;
+  private current = empty(); private last = empty(); private history: HuntAnalyzerSnapshot[] = []; private sequence = 0;
   start(huntId: HuntDefinition["id"], now = Date.now()): void { if (this.current.status === "ACTIVE") this.end(now); this.current = { ...empty(), sessionId: `hunt_${++this.sequence}_${now}`, huntId, status: "ACTIVE", startedAt: now }; }
-  end(now = Date.now()): void { if (this.current.status !== "ACTIVE") return; this.current.endedAt = now; this.current.durationMs = Math.max(0, now - (this.current.startedAt ?? now)); this.current.status = "ENDED"; this.last = structuredClone(this.current); }
+  end(now = Date.now()): void { if (this.current.status !== "ACTIVE") return; this.current.endedAt = now; this.current.durationMs = Math.max(0, now - (this.current.startedAt ?? now)); this.current.status = "ENDED"; this.last = structuredClone(this.current); this.history.unshift(structuredClone(this.current)); this.history.splice(20); }
   reset(huntId: HuntDefinition["id"], now = Date.now()): void { this.end(now); this.start(huntId, now); }
   recordKill(enemyType: EnemySnapshot["type"]): void { if (!this.active()) return; this.current.totalKills += 1; increment(this.current.killsByEnemy, enemyType); }
   recordXp(amount: number): void { if (this.active() && amount > 0) this.current.xpGained += amount; }
@@ -18,6 +18,7 @@ export class HuntAnalyzer {
   recordDamageTaken(effectiveDamage: number): void { if (this.active() && effectiveDamage > 0) this.current.damageTaken += effectiveDamage; }
   recordDodge(): void { if (this.active()) this.current.dodges += 1; } recordDeath(): void { if (this.active()) this.current.deaths += 1; }
   snapshot(now = Date.now()): HuntAnalyzerSnapshot { const source = this.current.status === "ACTIVE" ? this.current : this.last.status === "ENDED" ? this.last : this.current; return { ...structuredClone(source), durationMs: source.status === "ACTIVE" ? Math.max(0, now - (source.startedAt ?? now)) : source.durationMs }; }
+  historySnapshot(): HuntAnalyzerSnapshot[] { return structuredClone(this.history); }
   private active(): boolean { return this.current.status === "ACTIVE"; }
 }
 export const perHour = (total: number, durationMs: number): number => durationMs <= 0 ? 0 : Math.floor(total * 3_600_000 / durationMs);

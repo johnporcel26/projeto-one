@@ -247,6 +247,7 @@ export function PremiumMarketPanel({
               setRubies={setRubies}
               offers={acceptOffers}
               setOffers={setAcceptOffers}
+              lockedItemIds={player?.lockedItemIds ?? []}
               submit={() =>
                 onIntent({
                   type: "createAuctionListing",
@@ -422,6 +423,7 @@ function Sell({
   setRubies,
   offers,
   setOffers,
+  lockedItemIds,
   submit,
 }: {
   inventory: readonly { itemId: ItemId; quantity: number }[];
@@ -435,12 +437,18 @@ function Sell({
   setRubies: (x: string) => void;
   offers: boolean;
   setOffers: (x: boolean) => void;
+  lockedItemIds: readonly ItemId[];
   submit: () => void;
 }): JSX.Element {
+  const [submitting, setSubmitting] = useState(false);
   const items = inventory.filter(
-      (x) => itemDefinitions[x.itemId].tradeable && x.quantity > 0,
+      (x) => itemDefinitions[x.itemId].tradeable && x.quantity > 0 && !lockedItemIds.includes(x.itemId),
     ),
-    net = (x: string) => (x ? Math.floor(Number(x) * 0.9) : 0);
+    net = (x: string) => (x ? Math.floor(Number(x) * 0.9) : 0),
+    selected = items.find((item) => item.itemId === itemId),
+    validPrice = Number(berries) > 0 || Number(rubies) > 0,
+    valid = Boolean(selected && quantity >= 1 && quantity <= selected.quantity && (offers || validPrice));
+  const create = () => { if (!valid || submitting) return; setSubmitting(true); submit(); window.setTimeout(() => setSubmitting(false), 900); };
   return (
     <div className="market-sell-flow">
       <header>
@@ -529,8 +537,8 @@ function Sell({
             <b>{money(net(rubies))}</b>
           </p>
         </div>
-        <button className="market-primary" onClick={submit}>
-          CRIAR ANÚNCIO
+        <button className="market-primary" disabled={!valid || submitting} onClick={create}>
+          {submitting ? "ANUNCIANDO..." : "ANUNCIAR ITEM"}
         </button>
       </footer>
     </div>

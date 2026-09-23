@@ -31,3 +31,14 @@ test("sell all with no eligible stacks is a no-op and is safely repeatable", () 
   assert.equal(session.player.wallet.berries, 0);
   assert.match(session.drainLogs().join("\n"), /Nenhum item disponível para venda/);
 });
+
+test("server-side item locks persist in the snapshot and protect sell all", () => {
+  const session = new GameSession("locked-seller");
+  session.player.inventory.add("item_gravel", 2);
+  session.player.inventory.add("item_soap", 1);
+  session.handle({ type: "setItemLock", itemId: "item_soap", locked: true }, 1000);
+  session.handle({ type: "sellAll", excludedItemIds: [] }, 1100);
+  assert.equal(session.player.inventory.quantity("item_gravel"), 0);
+  assert.equal(session.player.inventory.quantity("item_soap"), 1);
+  assert.deepEqual(session.player.snapshot().lockedItemIds, ["item_soap"]);
+});

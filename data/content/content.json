@@ -1,6 +1,6 @@
 {
-  "contentVersion": 63,
-  "updatedAt": "2026-09-23T14:05:50.656Z",
+  "contentVersion": 66,
+  "updatedAt": "2026-09-23T16:01:17.569Z",
   "items": [
     {
       "id": "item_gravel",
@@ -362,7 +362,7 @@
       },
       {
         "itemId": "fruit_sube_sube",
-        "chanceBps": 100,
+        "chanceBps": 10000,
         "minQuantity": 1,
         "maxQuantity": 1
       },
@@ -388,7 +388,7 @@
       },
       {
         "itemId": "fruit_guro_guro",
-        "chanceBps": 100,
+        "chanceBps": 10000,
         "minQuantity": 1,
         "maxQuantity": 1
       },
@@ -420,7 +420,7 @@
       },
       {
         "itemId": "fruit_baku_baku",
-        "chanceBps": 100,
+        "chanceBps": 10000,
         "minQuantity": 1,
         "maxQuantity": 1
       },

@@ -38,3 +38,13 @@ test("offers reserve funds and a cancelled listing refunds them", () => {
   assert.equal(buyer.player.wallet.rubies, 7);
   assert.equal(seller.player.inventory.quantity("item_soap"), 1);
 });
+
+test("locked items cannot be listed until the player explicitly unlocks them", () => {
+  const sessions = new SessionManager();
+  const seller = sessions.createSession();
+  seller.player.inventory.add("item_gravel", 1);
+  seller.player.setItemLocked("item_gravel", true);
+  assert.equal(sessions.auction.createListing(seller.player, "item_gravel", 1, 10, undefined, false, 0).ok, false);
+  seller.player.setItemLocked("item_gravel", false);
+  assert.equal(sessions.auction.createListing(seller.player, "item_gravel", 1, 10, undefined, false, 0).ok, true);
+});

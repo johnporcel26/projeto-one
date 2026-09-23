@@ -20,6 +20,10 @@ coverage/
 # Logs, caches and local editor/OS state
 *.log
 *.tmp
+data/alpha.sqlite
+data/alpha.sqlite-*
+**/data/alpha.sqlite
+**/data/alpha.sqlite-*
 *.bak
 .DS_Store
 Thumbs.db

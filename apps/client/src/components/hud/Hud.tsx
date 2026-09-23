@@ -6,6 +6,7 @@ import {
   shopDefinitions,
   skillDefinitions,
   type FruitId,
+  type HuntAnalyzerSnapshot,
   type ItemId,
   type PlayerSnapshot,
 } from "@onepiece/shared";
@@ -52,6 +53,7 @@ const lockedFruitSkills = (fruit: string) =>
     type: "—",
     range: "—",
     available: false,
+    icon: undefined as string | undefined,
   }));
 const skillData: Record<
   FruitId,
@@ -63,6 +65,7 @@ const skillData: Record<
     type: string;
     range: string;
     available: boolean;
+    icon?: string;
   }[]
 > = Object.fromEntries(
   Object.entries(fruitDefinitions).map(([fruitId, fruit]) => [
@@ -87,6 +90,7 @@ const skillData: Record<
               ? "Próprio"
               : "—",
         available: skill.status === "AVAILABLE",
+        icon: skill.id === "guro_blast" ? `${root}effects/guro/explosion_01.png` : undefined,
       };
     }),
   ]),
@@ -100,6 +104,7 @@ const skillData: Record<
     type: string;
     range: string;
     available: boolean;
+    icon?: string;
   }[]
 >;
 const nav: readonly {
@@ -126,8 +131,10 @@ const nav: readonly {
 ];
 export function Hud({
   onIntent,
+  onLogout,
 }: {
   onIntent: (intent: unknown) => void;
+  onLogout?: () => void;
 }): JSX.Element {
   const { snapshot, logs, panel, openPanel, closePanel, uiScale } = useGameUi();
   const player = snapshot?.player;
@@ -200,7 +207,7 @@ export function Hud({
         onUse={(id) => useSkill(id, onIntent)}
       />
       {panel && (
-        <HudWindow panel={panel} onClose={closePanel} onIntent={onIntent} />
+        <HudWindow panel={panel} onClose={closePanel} onIntent={onIntent} onLogout={onLogout} />
       )}
     </div>
   );
@@ -350,6 +357,7 @@ function BattleSummary({
   const { snapshot, openPanel, logs } = useGameUi();
   const player = snapshot?.player;
   const analyzer = snapshot?.huntAnalyzer;
+  const activeHuntName = snapshot?.contentCatalog.public.hunts.find((hunt) => hunt.id === analyzer?.huntId)?.displayName;
   const state = player?.autoHunt ?? "OFF";
   const active = analyzer?.status === "ACTIVE";
   const duration = analyzer ? Math.floor(analyzer.durationMs / 1000) : 0;
@@ -369,11 +377,7 @@ function BattleSummary({
         <button onClick={() => openPanel("analysis")}>DETALHES</button>
       </header>
       <strong>
-        {active
-          ? analyzer?.huntId === "hunt_buffalo_beach"
-            ? "Praia do Buffalo"
-            : "Floresta da Alvida"
-          : "Nenhuma Hunt ativa"}
+        {active ? activeHuntName ?? analyzer?.huntId : "Nenhuma Hunt ativa"}
       </strong>
       <small>
         {active ? `Tempo: ${time}` : "Última sessão disponível em Detalhes"}
@@ -568,7 +572,11 @@ function SkillBar({
             aria-label={`${index + 1}: ${skill.name}`}
           >
             <span className="key">{index + 1}</span>
-            <Zap size={23} />
+            {skill.icon ? (
+              <img className="skill-icon-art" src={skill.icon} alt="" aria-hidden="true" />
+            ) : (
+              <Zap size={23} />
+            )}
             <strong>{remaining ? remaining.toFixed(1) : ""}</strong>
             {!skill.available && <Shield size={15} />}
             <div className="skill-tooltip">
@@ -589,10 +597,12 @@ function HudWindow({
   panel,
   onClose,
   onIntent,
+  onLogout,
 }: {
   panel: PanelId;
   onClose: () => void;
   onIntent: (intent: unknown) => void;
+  onLogout?: () => void;
 }): JSX.Element {
   const { snapshot } = useGameUi();
   useEffect(() => {
@@ -630,6 +640,7 @@ function HudWindow({
             snapshot={snapshot}
             onIntent={onIntent}
             onClose={onClose}
+            onLogout={onLogout}
           />
         )}
       </section>
@@ -645,16 +656,62 @@ function BotPanel({ player, onIntent }: { player?: PlayerSnapshot; onIntent: (in
   const setPolicy = (id: string, index: number, update: Partial<ReturnType<typeof policy>>) => setSettings((current) => ({ ...current, skillPolicies: { ...current.skillPolicies, [id]: { ...policy(id, index), ...update } } }));
   return <section className="bot-panel"><header><div><span className="eyebrow">COMANDO DE BORDO</span><h3>Bot / Auto-Hunt</h3></div><button onClick={() => onIntent({ type: "toggleAutoHunt" })}>AUTO-HUNT: <b>{player?.autoHunt ?? "OFF"}</b></button></header><label>Prioridade do alvo<select value={settings.targetPriority} onChange={(event) => setSettings({ ...settings, targetPriority: event.target.value as typeof settings.targetPriority })}><option value="NEAREST">Mais próximo</option><option value="LOWEST_HP">Menor HP</option><option value="HIGHEST_HP">Maior HP</option></select></label><label><input type="checkbox" checked={settings.basicAttackEnabled} onChange={(event) => setSettings({ ...settings, basicAttackEnabled: event.target.checked })} /> Ataque básico</label><h4>Habilidades</h4>{fruit ? skills.map(({ id, index, definition }) => { const current = policy(id, index), available = definition?.status === "AVAILABLE"; return <article className={!available ? "bot-skill locked" : "bot-skill"} key={id}><b>{index + 1}. {definition?.displayName ?? "Bloqueada"}</b><label><input disabled={!available} type="checkbox" checked={available && current.enabled} onChange={(event) => setPolicy(id, index, { enabled: event.target.checked })} /> Usar</label><label>Prioridade<select disabled={!available} value={current.priority} onChange={(event) => setPolicy(id, index, { priority: Number(event.target.value) })}>{[1,2,3,4].map((value) => <option key={value}>{value}</option>)}</select></label><label>Condição<select disabled={!available} value={current.condition} onChange={(event) => setPolicy(id, index, { condition: event.target.value as "ALWAYS" | "HP_BELOW" })}><option value="ALWAYS">Sempre disponível</option><option value="HP_BELOW">HP abaixo de</option></select></label>{current.condition === "HP_BELOW" && <label>HP {current.hpThresholdPercent}%<input type="range" min="1" max="99" value={current.hpThresholdPercent} onChange={(event) => setPolicy(id, index, { hpThresholdPercent: Number(event.target.value) })} /></label>}</article>; }) : <p className="empty-note">Nenhuma Akuma no Mi equipada. O Bot poderá usar apenas ataque básico.</p>}<h4>Sobrevivência</h4><label><input type="checkbox" checked={settings.autoUseConsumables} onChange={(event) => setSettings({ ...settings, autoUseConsumables: event.target.checked })} /> Usar poções da barra de utilidades</label><label>HP abaixo de: {settings.hpThresholdPercent}%<input type="range" min="1" max="99" value={settings.hpThresholdPercent} onChange={(event) => setSettings({ ...settings, hpThresholdPercent: Number(event.target.value) })} /></label><button className="primary" onClick={() => onIntent({ type: "updateAutoHuntSettings", settings })}>SALVAR CONFIGURAÇÃO</button></section>;
 }
+type AnalyzerTab = "current" | "history" | "compare";
+const analyzerTime = (durationMs: number): string => {
+  const seconds = Math.floor(durationMs / 1000);
+  return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds / 60) % 60).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+};
+const analyzerRate = (value: number, durationMs: number): string => durationMs > 0 ? Math.floor(value * 3_600_000 / durationMs).toLocaleString("pt-BR") : "0";
+function HuntAnalyzerPanel({ snapshot, onIntent }: { snapshot: ReturnType<typeof useGameUi>["snapshot"]; onIntent: (intent: unknown) => void }): JSX.Element {
+  const [tab, setTab] = useState<AnalyzerTab>("current");
+  const [lootFilter, setLootFilter] = useState("all");
+  const [sort, setSort] = useState<"quantity" | "value" | "name">("quantity");
+  const current = snapshot?.huntAnalyzer;
+  const history = snapshot?.huntAnalyzerHistory ?? [];
+  const catalog = snapshot?.contentCatalog.public;
+  const huntName = (huntId: string | null) => catalog?.hunts.find((hunt) => hunt.id === huntId)?.displayName ?? huntId ?? "Nenhuma Hunt ativa";
+  const lootRows = (session?: HuntAnalyzerSnapshot) => {
+    if (!session || !catalog) return [];
+    const entries = [...Object.entries(session.lootByItemId), ...Object.entries(session.fruitDrops)];
+    return entries.map(([id, quantity]) => {
+      const item = catalog.items.find((entry) => entry.id === id);
+      const fruit = catalog.fruits.find((entry) => entry.id === id);
+      const known = item ?? fruit;
+      return { id, quantity: quantity ?? 0, name: known?.displayName ?? id, category: item?.category ?? (fruit ? "fruit" : "other"), rarity: known?.rarity ?? "desconhecida", value: (item?.sellValue ?? 0) * (quantity ?? 0), iconPath: known?.iconPath };
+    }).filter((entry) => lootFilter === "all" || entry.category === lootFilter).sort((left, right) => sort === "name" ? left.name.localeCompare(right.name, "pt-BR") : right[sort] - left[sort]);
+  };
+  const selected = current?.status === "ACTIVE" ? current : history[0] ?? current;
+  const rows = lootRows(selected);
+  const groups = useMemo(() => Object.values(history.reduce<Record<string, HuntAnalyzerSnapshot[]>>((all, session) => { (all[session.huntId ?? "unknown"] ??= []).push(session); return all; }, {})), [history]);
+  const reset = () => { if (current?.huntId && window.confirm("Encerrar a sessão atual e iniciar uma nova análise desta mesma Hunt? O histórico anterior será preservado.")) onIntent({ type: "resetHuntAnalyzer" }); };
+  const stats = (session?: HuntAnalyzerSnapshot) => <div className="analyzer-stats">
+    <Stat label="Tempo" value={analyzerTime(session?.durationMs ?? 0)} /><Stat label="Kills" value={String(session?.totalKills ?? 0)} />
+    <Stat label="Kills/h" value={analyzerRate(session?.totalKills ?? 0, session?.durationMs ?? 0)} /><Stat label="XP" value={(session?.xpGained ?? 0).toLocaleString("pt-BR")} />
+    <Stat label="XP/h" value={analyzerRate(session?.xpGained ?? 0, session?.durationMs ?? 0)} /><Stat label="Berries" value={(session?.berriesGained ?? 0).toLocaleString("pt-BR")} />
+    <Stat label="Berries/h" value={analyzerRate(session?.berriesGained ?? 0, session?.durationMs ?? 0)} /><Stat label="Valor de loot" value={(session?.estimatedLootValue ?? 0).toLocaleString("pt-BR")} />
+    <Stat label="Dano causado" value={(session?.damageDealt ?? 0).toLocaleString("pt-BR")} /><Stat label="Dano recebido" value={(session?.damageTaken ?? 0).toLocaleString("pt-BR")} />
+  </div>;
+  return <section className="hunt-analyzer-panel">
+    <nav className="analyzer-tabs">{([ ["current", "SESSÃO ATUAL"], ["history", `HISTÓRICO (${history.length})`], ["compare", "COMPARAR"] ] as const).map(([id, label]) => <button className={tab === id ? "active" : ""} key={id} onClick={() => setTab(id)}>{label}</button>)}</nav>
+    {tab === "current" && <><header className="analyzer-heading"><div><span className="eyebrow">{current?.status === "ACTIVE" ? "EM ANDAMENTO" : "ÚLTIMA SESSÃO"}</span><h3>{huntName(selected?.huntId ?? null)}</h3><small>{selected?.durationMs && selected.durationMs < 60_000 ? "Amostra curta: as taxas/h podem oscilar." : "Dados registrados pelo servidor."}</small></div><button className="analyzer-reset" disabled={!current?.huntId} onClick={reset}>REINICIAR ANÁLISE</button></header>{stats(selected)}<AnalyzerLoot rows={rows} filter={lootFilter} setFilter={setLootFilter} sort={sort} setSort={setSort} /></>}
+    {tab === "history" && <div className="analyzer-history">{history.length ? history.map((session) => <article key={session.sessionId}><header><div><b>{huntName(session.huntId)}</b><small>{session.endedAt ? new Date(session.endedAt).toLocaleString("pt-BR") : "Sessão encerrada"}</small></div><span>{analyzerTime(session.durationMs)}</span></header>{stats(session)}<small>{session.durationMs < 60_000 ? "Amostra curta." : `${session.totalKills} kills · ${analyzerRate(session.xpGained, session.durationMs)} XP/h`}</small></article>) : <p className="empty-note">Nenhuma sessão finalizada nesta conexão ainda.</p>}</div>}
+    {tab === "compare" && <div className="analyzer-compare">{groups.length ? groups.map((sessions) => { const total = sessions.reduce((sum, session) => ({ durationMs: sum.durationMs + session.durationMs, totalKills: sum.totalKills + session.totalKills, xpGained: sum.xpGained + session.xpGained, berriesGained: sum.berriesGained + session.berriesGained, estimatedLootValue: sum.estimatedLootValue + session.estimatedLootValue }), { durationMs: 0, totalKills: 0, xpGained: 0, berriesGained: 0, estimatedLootValue: 0 }); return <article key={sessions[0].huntId}><h3>{huntName(sessions[0].huntId)}</h3><small>{sessions.length} {sessions.length === 1 ? "sessão" : "sessões"} · {analyzerTime(total.durationMs)}</small><div><Stat label="Kills/h" value={analyzerRate(total.totalKills, total.durationMs)} /><Stat label="XP/h" value={analyzerRate(total.xpGained, total.durationMs)} /><Stat label="Berries/h" value={analyzerRate(total.berriesGained, total.durationMs)} /><Stat label="Valor/h" value={analyzerRate(total.estimatedLootValue, total.durationMs)} /></div>{total.durationMs < 60_000 && <small>Amostra curta.</small>}</article>; }) : <p className="empty-note">Finalize uma sessão para comparar suas Hunts.</p>}</div>}
+  </section>;
+}
+type AnalyzerLootRow = { id: string; quantity: number; name: string; category: string; rarity: string; value: number; iconPath?: string };
+function AnalyzerLoot({ rows, filter, setFilter, sort, setSort }: { rows: AnalyzerLootRow[]; filter: string; setFilter: (value: string) => void; sort: "quantity" | "value" | "name"; setSort: (value: "quantity" | "value" | "name") => void }): JSX.Element { return <section className="analyzer-loot"><header><h3>Loot coletado</h3><div><select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Tudo</option><option value="material">Materiais</option><option value="consumable">Consumíveis</option><option value="equipment">Equipamentos</option><option value="fruit">Akuma no Mi</option><option value="other">Outros</option></select><select value={sort} onChange={(event) => setSort(event.target.value as "quantity" | "value" | "name")}><option value="quantity">Quantidade</option><option value="value">Valor</option><option value="name">Nome</option></select></div></header><div className="analyzer-loot-grid">{rows.length ? rows.map((entry) => <article key={entry.id}><img src={entry.iconPath ? `${root}${entry.iconPath.replace(/^\//, "")}` : assets[entry.id]} alt="" /><b>{entry.name}</b><small>{entry.rarity}</small><span>×{entry.quantity}</span><em>{entry.value ? `${entry.value} B$` : "—"}</em></article>) : <p className="empty-note">Nenhum loot nessa categoria.</p>}</div></section>; }
 function PanelContent({
   panel,
   snapshot,
   onIntent,
   onClose,
+  onLogout,
 }: {
   panel: PanelId;
   snapshot: ReturnType<typeof useGameUi>["snapshot"];
   onIntent: (intent: unknown) => void;
   onClose: () => void;
+  onLogout?: () => void;
 }): JSX.Element {
   const player = snapshot?.player;
   const { uiScale, setUiScale } = useGameUi();
@@ -700,17 +757,7 @@ function PanelContent({
     );
   if (panel === "hunts") return <HuntCenter snapshot={snapshot} onIntent={onIntent} onClose={onClose} />;
   if (panel === "bot") return <BotPanel player={player} onIntent={onIntent} />;
-  if (panel === "analysis")
-    return (
-      <div className="analysis-grid">
-        <Stat label="Tempo de sessão" value="—" />
-        <Stat label="Kills" value="—" />
-        <Stat label="XP total" value={String(player?.totalXp ?? 0)} />
-        <Stat label="Nível" value={String(player?.level ?? 1)} />
-        <Stat label="Berries" value={String(player?.wallet.berries ?? 0)} />
-        <Stat label="Itens" value={String(player?.inventory.length ?? 0)} />
-      </div>
-    );
+  if (panel === "analysis") return <HuntAnalyzerPanel snapshot={snapshot} onIntent={onIntent} />;
   if (panel === "catalog") return <CatalogPanel snapshot={snapshot} />;
   if (panel === "world")
     return (
@@ -742,12 +789,11 @@ function PanelContent({
           </select>
           %
         </label>
-        <button disabled>
-          Volume <span>Sem áudio</span>
-        </button>
+        <button disabled>Volume <span>Disponível no login</span></button>
         <button disabled>
           Tela cheia <span>Em desenvolvimento</span>
         </button>
+        <button onClick={onLogout}>SAIR DO JOGO <span>Logout seguro</span></button>
       </div>
     );
   return (
@@ -962,7 +1008,10 @@ function InventoryPanel({
 }): JSX.Element {
   const { snapshot } = useGameUi();
   const [query, setQuery] = useState("");
-  const [locked, setLocked] = useState<Set<ItemId>>(() => new Set());
+  const locked = useMemo(
+    () => new Set<ItemId>(snapshot?.player.lockedItemIds ?? []),
+    [snapshot?.player.lockedItemIds],
+  );
   const [selected, setSelected] = useState<Set<ItemId>>(() => new Set());
   const [menuId, setMenuId] = useState<ItemId | null>(null);
   const stacks = (snapshot?.player.inventory ?? []).filter((stack) =>
@@ -1000,11 +1049,11 @@ function InventoryPanel({
     if (kind === "sell") sell([id]);
     if (kind === "link") navigator.clipboard?.writeText(`[${itemNames[id]}]`);
     if (kind === "lock")
-      setLocked((current) => {
-        const next = new Set(current);
-        next.has(id) ? next.delete(id) : next.add(id);
-        return next;
-      });
+      window.dispatchEvent(
+        new CustomEvent("game-intent", {
+          detail: { type: "setItemLock", itemId: id, locked: !locked.has(id) },
+        }),
+      );
     setMenuId(null);
   };
   return (
@@ -1036,10 +1085,11 @@ function InventoryPanel({
         {stacks.map((stack) => {
           const open = menuId === stack.itemId;
           const fruit = stack.itemId.startsWith("fruit_");
+          const rarity = snapshot?.contentCatalog.public.items.find((item) => item.id === stack.itemId)?.rarity ?? snapshot?.contentCatalog.public.fruits.find((item) => item.id === stack.itemId)?.rarity ?? (fruit ? fruitDefinitions[stack.itemId]?.rarity : "common") ?? "common";
           return (
             <article
               key={stack.itemId}
-              className={selected.has(stack.itemId) ? "selected-item" : ""}
+              className={`rarity-frame rarity-${rarity.toLowerCase()} ${selected.has(stack.itemId) ? "selected-item" : ""} ${locked.has(stack.itemId) ? "item-locked" : ""}`}
               onContextMenu={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1062,7 +1112,19 @@ function InventoryPanel({
                 <img src={assets[stack.itemId]} alt={itemNames[stack.itemId]} />
               </button>
               <span>{itemNames[stack.itemId]}</span>
+              <small className="rarity-label">{rarity}</small>
               <b>×{stack.quantity}</b>
+              <button
+                className="item-lock-toggle"
+                aria-label={locked.has(stack.itemId) ? "Destravar item" : "Travar item"}
+                title={locked.has(stack.itemId) ? "Travado" : "Destravado"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  action(stack.itemId, "lock");
+                }}
+              >
+                {locked.has(stack.itemId) ? "🔒" : "🔓"}
+              </button>
               {open && (
                 <div
                   className="item-context-menu"
