@@ -1,6 +1,6 @@
 {
-  "contentVersion": 25,
-  "updatedAt": "2026-09-20T18:25:38.591Z",
+  "contentVersion": 63,
+  "updatedAt": "2026-09-23T14:05:50.656Z",
   "items": [
     {
       "id": "item_gravel",
@@ -69,7 +69,7 @@
     {
       "id": "item_potion_small",
       "displayName": "Poção Menor",
-      "description": "Recupera 25% da vida.",
+      "description": "Uma poção pequena, que cura 25% da vida atual do alvo",
       "category": "consumable",
       "rarity": "COMMON",
       "iconPath": "Itens/Poção Menor/1.png",
@@ -91,7 +91,7 @@
     {
       "id": "item_potion_large",
       "displayName": "Poção Maior",
-      "description": "Recupera 50% da vida.",
+      "description": "Uma poção média, que cura 50% da vida atual do alvo",
       "category": "consumable",
       "rarity": "UNCOMMON",
       "iconPath": "Itens/Poção Maior/1.png",
@@ -131,18 +131,61 @@
         }
       ],
       "cooldownMs": 3000
+    },
+    {
+      "id": "correntes001",
+      "displayName": "Correntes cruzadas",
+      "description": "Correntes velhas e cruzadas, deve valer algo no ferro velho",
+      "category": "material",
+      "rarity": "COMMON",
+      "iconPath": "items/helicedrop_copy.png",
+      "stackable": true,
+      "tradeable": true,
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": false,
+      "buyValue": 0,
+      "sellValue": 22,
+      "effects": [
+        {
+          "type": "RESTORE_HP_PERCENT",
+          "amount": 25
+        }
+      ],
+      "cooldownMs": 3000
+    },
+    {
+      "id": "sucata01",
+      "displayName": "Sucata",
+      "description": "Sucata velha e mastigada eca!",
+      "category": "material",
+      "rarity": "COMMON",
+      "iconPath": "items/sucata01.png",
+      "stackable": true,
+      "tradeable": true,
+      "buyValue": 0,
+      "sellValue": 15,
+      "effects": [],
+      "marketable": true,
+      "sellable": true,
+      "shopBuyable": false
     }
   ],
   "fruits": [
     {
       "id": "fruit_sube_sube",
       "displayName": "Sube Sube no Mi",
-      "description": "Pele escorregadia e bolhas protetoras.",
+      "description": "Uma Akuma no Mi que torna o corpo extremamente liso, fazendo ataques e impactos deslizarem sobre o usuário. Excelente para esquiva e defesa.",
       "rarity": "RARE",
       "iconPath": "Akumanomi/Sube/SubeSube.png",
       "tradeable": true,
       "droppable": true,
-      "stats": {},
+      "stats": {
+        "strength": 1,
+        "defense": 2,
+        "maxHp": 0,
+        "evasionChanceBps": 200
+      },
       "skillIds": [
         "sube_bubbles",
         "sube_defense",
@@ -163,8 +206,8 @@
     {
       "id": "fruit_guro_guro",
       "displayName": "Guro Guro no Mi",
-      "description": "Poder giratório de impacto.",
-      "rarity": "EPIC",
+      "description": "Uma Akuma no Mi que permite transformar partes do corpo em hélices giratórias. Concede voo, grande mobilidade e a capacidade de gerar poderosas rajadas de vento.\n",
+      "rarity": "RARE",
       "iconPath": "Akumanomi/Guro/598d5176-ae03-4186-947c-581ce2a5d5c9.png",
       "tradeable": true,
       "droppable": true,
@@ -241,8 +284,8 @@
     {
       "id": "fruit_baku_baku",
       "displayName": "Baku Baku no Mi",
-      "description": "Poder de canhão, mordida e blindagem.",
-      "rarity": "EPIC",
+      "description": "Uma Akuma no Mi que permite mastigar e consumir praticamente qualquer coisa. O usuário pode incorporar o que devora ao próprio corpo, criando armas, ferramentas e combinações imprevisíveis.\n",
+      "rarity": "RARE",
       "iconPath": "Akumanomi/Baku/215d20df-753d-442e-bd66-b18a831a3d1a.png",
       "tradeable": true,
       "droppable": true,
@@ -250,9 +293,22 @@
       "sellableForBerries": false,
       "sellableForRubies": false,
       "acceptsOffers": true,
-      "stats": {},
-      "skillIds": ["baku_cannon", "baku_bite", "baku_armor", "baku_placeholder"],
-      "skillStatuses": ["AVAILABLE", "AVAILABLE", "AVAILABLE", "LOCKED"]
+      "stats": {
+        "defense": 5,
+        "maxHp": 10
+      },
+      "skillIds": [
+        "baku_cannon",
+        "baku_bite",
+        "baku_armor",
+        "baku_placeholder"
+      ],
+      "skillStatuses": [
+        "AVAILABLE",
+        "AVAILABLE",
+        "AVAILABLE",
+        "LOCKED"
+      ]
     }
   ],
   "enemies": [
@@ -282,25 +338,25 @@
       },
       {
         "itemId": "item_soap",
-        "chanceBps": 2400,
+        "chanceBps": 6000,
         "minQuantity": 1,
         "maxQuantity": 1
       },
       {
         "itemId": "item_potion_small",
-        "chanceBps": 1500,
+        "chanceBps": 1000,
         "minQuantity": 1,
         "maxQuantity": 1
       },
       {
         "itemId": "item_red_scarf",
-        "chanceBps": 700,
+        "chanceBps": 5000,
         "minQuantity": 1,
         "maxQuantity": 1
       },
       {
         "itemId": "item_gold_ring",
-        "chanceBps": 300,
+        "chanceBps": 200,
         "minQuantity": 1,
         "maxQuantity": 1
       },
@@ -311,7 +367,7 @@
         "maxQuantity": 1
       },
       {
-        "itemId": "helicedrop",
+        "itemId": "correntes001",
         "chanceBps": 10000,
         "minQuantity": 1,
         "maxQuantity": 1
@@ -341,12 +397,39 @@
         "chanceBps": 10000,
         "minQuantity": 1,
         "maxQuantity": 1
+      },
+      {
+        "itemId": "correntes001",
+        "chanceBps": 2500,
+        "minQuantity": 1,
+        "maxQuantity": 1
       }
     ],
     "enemy_wapol": [
-      { "itemId": "item_gravel", "chanceBps": 6500, "minQuantity": 1, "maxQuantity": 1 },
-      { "itemId": "item_potion_large", "chanceBps": 3500, "minQuantity": 1, "maxQuantity": 1 },
-      { "itemId": "fruit_baku_baku", "chanceBps": 100, "minQuantity": 1, "maxQuantity": 1 }
+      {
+        "itemId": "item_gravel",
+        "chanceBps": 6500,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "item_potion_large",
+        "chanceBps": 500,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "fruit_baku_baku",
+        "chanceBps": 100,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      },
+      {
+        "itemId": "sucata01",
+        "chanceBps": 10000,
+        "minQuantity": 1,
+        "maxQuantity": 1
+      }
     ]
   }
 }

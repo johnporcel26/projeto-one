@@ -7,6 +7,7 @@ import {
   skillDefinitions,
   type FruitId,
   type ItemId,
+  type PlayerSnapshot,
 } from "@onepiece/shared";
 import {
   Activity,
@@ -635,6 +636,15 @@ function HudWindow({
     </div>
   );
 }
+function BotPanel({ player, onIntent }: { player?: PlayerSnapshot; onIntent: (intent: unknown) => void }): JSX.Element {
+  const fruit = player?.activeFruitId ? fruitDefinitions[player.activeFruitId] : undefined;
+  const initial = player?.autoHuntSettings;
+  const [settings, setSettings] = useState(() => initial ?? { autoUseConsumables: false, hpPotionEnabled: true, hpThresholdPercent: 40, manaPotionEnabled: false, manaThresholdPercent: 30, potionPreference: "SMART" as const, utilityMode: "AUTO" as const, basicAttackEnabled: true, targetPriority: "NEAREST" as const, skillPolicies: {} });
+  const skills = fruit?.skillIds.map((id, index) => ({ id, index, definition: skillDefinitions[id] })) ?? [];
+  const policy = (id: string, index: number) => settings.skillPolicies[id] ?? { enabled: true, priority: index + 1, condition: "ALWAYS" as const, hpThresholdPercent: 40 };
+  const setPolicy = (id: string, index: number, update: Partial<ReturnType<typeof policy>>) => setSettings((current) => ({ ...current, skillPolicies: { ...current.skillPolicies, [id]: { ...policy(id, index), ...update } } }));
+  return <section className="bot-panel"><header><div><span className="eyebrow">COMANDO DE BORDO</span><h3>Bot / Auto-Hunt</h3></div><button onClick={() => onIntent({ type: "toggleAutoHunt" })}>AUTO-HUNT: <b>{player?.autoHunt ?? "OFF"}</b></button></header><label>Prioridade do alvo<select value={settings.targetPriority} onChange={(event) => setSettings({ ...settings, targetPriority: event.target.value as typeof settings.targetPriority })}><option value="NEAREST">Mais próximo</option><option value="LOWEST_HP">Menor HP</option><option value="HIGHEST_HP">Maior HP</option></select></label><label><input type="checkbox" checked={settings.basicAttackEnabled} onChange={(event) => setSettings({ ...settings, basicAttackEnabled: event.target.checked })} /> Ataque básico</label><h4>Habilidades</h4>{fruit ? skills.map(({ id, index, definition }) => { const current = policy(id, index), available = definition?.status === "AVAILABLE"; return <article className={!available ? "bot-skill locked" : "bot-skill"} key={id}><b>{index + 1}. {definition?.displayName ?? "Bloqueada"}</b><label><input disabled={!available} type="checkbox" checked={available && current.enabled} onChange={(event) => setPolicy(id, index, { enabled: event.target.checked })} /> Usar</label><label>Prioridade<select disabled={!available} value={current.priority} onChange={(event) => setPolicy(id, index, { priority: Number(event.target.value) })}>{[1,2,3,4].map((value) => <option key={value}>{value}</option>)}</select></label><label>Condição<select disabled={!available} value={current.condition} onChange={(event) => setPolicy(id, index, { condition: event.target.value as "ALWAYS" | "HP_BELOW" })}><option value="ALWAYS">Sempre disponível</option><option value="HP_BELOW">HP abaixo de</option></select></label>{current.condition === "HP_BELOW" && <label>HP {current.hpThresholdPercent}%<input type="range" min="1" max="99" value={current.hpThresholdPercent} onChange={(event) => setPolicy(id, index, { hpThresholdPercent: Number(event.target.value) })} /></label>}</article>; }) : <p className="empty-note">Nenhuma Akuma no Mi equipada. O Bot poderá usar apenas ataque básico.</p>}<h4>Sobrevivência</h4><label><input type="checkbox" checked={settings.autoUseConsumables} onChange={(event) => setSettings({ ...settings, autoUseConsumables: event.target.checked })} /> Usar poções da barra de utilidades</label><label>HP abaixo de: {settings.hpThresholdPercent}%<input type="range" min="1" max="99" value={settings.hpThresholdPercent} onChange={(event) => setSettings({ ...settings, hpThresholdPercent: Number(event.target.value) })} /></label><button className="primary" onClick={() => onIntent({ type: "updateAutoHuntSettings", settings })}>SALVAR CONFIGURAÇÃO</button></section>;
+}
 function PanelContent({
   panel,
   snapshot,
@@ -689,25 +699,7 @@ function PanelContent({
       </div>
     );
   if (panel === "hunts") return <HuntCenter snapshot={snapshot} onIntent={onIntent} onClose={onClose} />;
-  if (panel === "bot")
-    return (
-      <div className="settings-list">
-        <button onClick={() => onIntent({ type: "toggleAutoHunt" })}>
-          Auto-Hunt <b>{player?.autoHunt ?? "OFF"}</b>
-        </button>
-        {[
-          "Prioridade de alvo",
-          "Usar Skills",
-          "Auto Loot",
-          "Limite de poções",
-        ].map((label) => (
-          <button disabled key={label}>
-            {label}
-            <span>Em desenvolvimento</span>
-          </button>
-        ))}
-      </div>
-    );
+  if (panel === "bot") return <BotPanel player={player} onIntent={onIntent} />;
   if (panel === "analysis")
     return (
       <div className="analysis-grid">
