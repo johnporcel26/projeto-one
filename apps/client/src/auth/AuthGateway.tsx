@@ -8,7 +8,7 @@ type AuthResult = { ok: boolean; message?: string; session?: { token: string; us
 const api = async (path: string, data: Record<string, string>): Promise<AuthResult> => { try { const response = await fetch(`http://localhost:8787/api/auth/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); return await response.json() as AuthResult; } catch { return { ok: false, message: "Servidor indisponível." }; } };
 export function AuthGateway({ onAuthenticated }: { onAuthenticated: (token: string) => void }): JSX.Element {
   const [phase, setPhase] = useState<Phase>("LANDING"), [muted, setMuted] = useState(() => localStorage.getItem("project-one-muted") === "true"), [message, setMessage] = useState(""), [showPassword, setShowPassword] = useState(false);
-  const audio = useRef<HTMLAudioElement>(); if (!audio.current) { audio.current = new Audio("/songs/0923.WAV"); audio.current.loop = true; audio.current.volume = .28; }
+  const audio = useRef<HTMLAudioElement>(); if (!audio.current) { audio.current = new Audio("/songs/0923.opus"); audio.current.loop = true; audio.current.volume = .28; }
   useEffect(() => { audio.current!.muted = muted; localStorage.setItem("project-one-muted", String(muted)); }, [muted]);
   useEffect(() => () => { audio.current?.pause(); }, []);
   const begin = () => { void audio.current?.play().catch(() => undefined); setPhase("LOGIN"); };
