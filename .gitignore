@@ -24,6 +24,10 @@ data/alpha.sqlite
 data/alpha.sqlite-*
 **/data/alpha.sqlite
 **/data/alpha.sqlite-*
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+data/backups/
 *.bak
 .DS_Store
 Thumbs.db
