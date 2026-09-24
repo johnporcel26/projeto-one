@@ -1,7 +1,71 @@
-import { createContext, useCallback, useContext, useMemo, useState, type PropsWithChildren } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type PropsWithChildren,
+} from "react";
 import type { GameSnapshot } from "@onepiece/shared";
-export type PanelId = "catalog" | "deposit" | "inventory" | "hunts" | "bot" | "analysis" | "diary" | "pass" | "wiki" | "shop" | "market" | "world" | "search" | "settings" | "profile";
-type UiState = { snapshot?: GameSnapshot; logs: string[]; panel: PanelId | null; uiScale: number; setSnapshot: (snapshot: GameSnapshot) => void; setUiScale: (scale: number) => void; addLog: (log: string) => void; openPanel: (panel: PanelId) => void; closePanel: () => void; };
+export type PanelId =
+  | "catalog"
+  | "deposit"
+  | "inventory"
+  | "hunts"
+  | "bot"
+  | "analysis"
+  | "diary"
+  | "pass"
+  | "wiki"
+  | "shop"
+  | "premium"
+  | "market"
+  | "world"
+  | "search"
+  | "settings"
+  | "profile";
+type UiState = {
+  snapshot?: GameSnapshot;
+  logs: string[];
+  panel: PanelId | null;
+  uiScale: number;
+  setSnapshot: (snapshot: GameSnapshot) => void;
+  setUiScale: (scale: number) => void;
+  addLog: (log: string) => void;
+  openPanel: (panel: PanelId) => void;
+  closePanel: () => void;
+};
 const UiContext = createContext<UiState | undefined>(undefined);
-export function GameUiProvider({ children }: PropsWithChildren): JSX.Element { const [snapshot, setSnapshot] = useState<GameSnapshot>(); const [logs, setLogs] = useState<string[]>(["Conectando ao mar de Alvida..."]); const [panel, setPanel] = useState<PanelId | null>(null); const [uiScale, setUiScale] = useState(1); const addLog = useCallback((log: string) => setLogs((current) => [log, ...current].slice(0, 30)), []); const closePanel = useCallback(() => setPanel(null), []); const value = useMemo<UiState>(() => ({ snapshot, logs, panel, uiScale, setSnapshot, setUiScale, addLog, openPanel: setPanel, closePanel }), [snapshot, logs, panel, uiScale, addLog, closePanel]); return <UiContext.Provider value={value}>{children}</UiContext.Provider>; }
-export function useGameUi(): UiState { const state = useContext(UiContext); if (!state) throw new Error("GameUiProvider is required"); return state; }
+export function GameUiProvider({ children }: PropsWithChildren): JSX.Element {
+  const [snapshot, setSnapshot] = useState<GameSnapshot>();
+  const [logs, setLogs] = useState<string[]>([
+    "Conectando ao mar de Alvida...",
+  ]);
+  const [panel, setPanel] = useState<PanelId | null>(null);
+  const [uiScale, setUiScale] = useState(1);
+  const addLog = useCallback(
+    (log: string) => setLogs((current) => [log, ...current].slice(0, 30)),
+    [],
+  );
+  const closePanel = useCallback(() => setPanel(null), []);
+  const value = useMemo<UiState>(
+    () => ({
+      snapshot,
+      logs,
+      panel,
+      uiScale,
+      setSnapshot,
+      setUiScale,
+      addLog,
+      openPanel: setPanel,
+      closePanel,
+    }),
+    [snapshot, logs, panel, uiScale, addLog, closePanel],
+  );
+  return <UiContext.Provider value={value}>{children}</UiContext.Provider>;
+}
+export function useGameUi(): UiState {
+  const state = useContext(UiContext);
+  if (!state) throw new Error("GameUiProvider is required");
+  return state;
+}

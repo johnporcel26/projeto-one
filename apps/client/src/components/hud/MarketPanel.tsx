@@ -441,104 +441,138 @@ function Sell({
   submit: () => void;
 }): JSX.Element {
   const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
   const items = inventory.filter(
-      (x) => itemDefinitions[x.itemId].tradeable && x.quantity > 0 && !lockedItemIds.includes(x.itemId),
+      (x) =>
+        itemDefinitions[x.itemId].tradeable &&
+        x.quantity > 0 &&
+        !lockedItemIds.includes(x.itemId),
     ),
     net = (x: string) => (x ? Math.floor(Number(x) * 0.9) : 0),
     selected = items.find((item) => item.itemId === itemId),
     validPrice = Number(berries) > 0 || Number(rubies) > 0,
-    valid = Boolean(selected && quantity >= 1 && quantity <= selected.quantity && (offers || validPrice));
-  const create = () => { if (!valid || submitting) return; setSubmitting(true); submit(); window.setTimeout(() => setSubmitting(false), 900); };
+    valid = Boolean(
+      selected &&
+      quantity >= 1 &&
+      quantity <= selected.quantity &&
+      (offers || validPrice),
+    );
+  const create = () => {
+    if (!valid || submitting) return;
+    setSubmitting(true);
+    setMessage("");
+    submit();
+    window.setTimeout(() => {
+      setSubmitting(false);
+      setMessage("Solicitação enviada. Confira Meus anúncios para acompanhar o resultado.");
+    }, 900);
+  };
   return (
     <div className="market-sell-flow">
-      <header>
-        <span className="market-kicker">CRIAR NOVO ANÚNCIO</span>
-        <h4>Venda com segurança e veja o valor líquido antes de publicar.</h4>
-      </header>
-      <section>
-        <b>
-          <i>1</i> O QUE VOCÊ VAI ANUNCIAR
-        </b>
-        <div className="sell-items">
-          {items.map((x) => (
+      <div className="market-sell-body">
+        <header>
+          <span className="market-kicker">CRIAR NOVO ANÚNCIO</span>
+          <h4>Venda com segurança e veja o valor líquido antes de publicar.</h4>
+        </header>
+        <section>
+          <b>
+            <i>1</i> O QUE VOCÊ VAI ANUNCIAR
+          </b>
+          <div className="sell-items">
+            {items.map((x) => (
+              <button
+                key={x.itemId}
+                className={itemId === x.itemId ? "selected" : ""}
+                onClick={() => setItemId(x.itemId)}
+              >
+                <img src={icons[x.itemId]} alt="" />
+                <span>
+                  {itemDefinitions[x.itemId].displayName}
+                  <small>Disponível: ×{x.quantity}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+          <label className="market-field">
+            Quantidade
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+            />
+          </label>
+        </section>
+        <section>
+          <b>
+            <i>2</i> COMO VENDER
+          </b>
+          <div className="market-sale-modes">
             <button
-              key={x.itemId}
-              className={itemId === x.itemId ? "selected" : ""}
-              onClick={() => setItemId(x.itemId)}
+              className={!offers ? "selected" : ""}
+              onClick={() => setOffers(false)}
             >
-              <img src={icons[x.itemId]} alt="" />
-              <span>
-                {itemDefinitions[x.itemId].displayName}
-                <small>Disponível: ×{x.quantity}</small>
-              </span>
+              PREÇO FIXO<small>Venda direta por Berries ou Rubis</small>
             </button>
-          ))}
-        </div>
-        <label className="market-field">
-          Quantidade
-          <input
-            type="number"
-            min="1"
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-          />
-        </label>
-      </section>
-      <section>
-        <b>
-          <i>2</i> COMO VENDER
-        </b>
-        <div className="market-sale-modes">
-          <button
-            className={berries || rubies ? "selected" : ""}
-            onClick={() => !berries && !rubies && setBerries("1")}
-          >
-            PREÇO FIXO<small>Venda direta por Berries ou Rubis</small>
-          </button>
-          <button
-            className={offers ? "selected" : ""}
-            onClick={() => setOffers(!offers)}
-          >
-            RECEBER OFERTAS
-            <small>Compradores podem reservar uma proposta</small>
-          </button>
-        </div>
-      </section>
-      <section className="market-values">
-        <b>
-          <i>3</i> VALORES
-        </b>
-        <label className="market-field">
-          Preço em Berries
-          <input
-            type="number"
-            min="1"
-            value={berries}
-            onChange={(e) => setBerries(e.target.value)}
-            placeholder="Opcional"
-          />
-        </label>
-        <label className="market-field">
-          Preço em Rubis
-          <input
-            type="number"
-            min="1"
-            value={rubies}
-            onChange={(e) => setRubies(e.target.value)}
-            placeholder="Opcional"
-          />
-        </label>
-      </section>
+            <button
+              className={offers ? "selected" : ""}
+              onClick={() => setOffers(true)}
+            >
+              RECEBER OFERTAS
+              <small>Compradores podem reservar uma proposta</small>
+            </button>
+          </div>
+        </section>
+        <section className="market-values">
+          <b>
+            <i>3</i> VALORES
+          </b>
+          <label className="market-field">
+            Preço em Berries
+            <input
+              type="number"
+              min="1"
+              value={berries}
+              onChange={(e) => setBerries(e.target.value)}
+              placeholder="Opcional"
+            />
+          </label>
+          <label className="market-field">
+            Preço em Rubis
+            <input
+              type="number"
+              min="1"
+              value={rubies}
+              onChange={(e) => setRubies(e.target.value)}
+              placeholder="Opcional"
+            />
+          </label>
+        </section>
+      </div>
       <footer>
         <div>
-          <span>Cadastro grátis · Expira em 48h</span>
+          <span>
+            Item: {selected ? itemDefinitions[selected.itemId].displayName : "selecione um item"} · Quantidade: {quantity || 0} · Taxa na venda: 10%
+          </span>
           <p>
             Berries líquido: <b>{money(net(berries))}</b> · Rubis líquido:{" "}
             <b>{money(net(rubies))}</b>
           </p>
+          {!valid && <p className="market-form-hint">Selecione um item e defina um valor para continuar.</p>}
+          {message && <p className="market-form-message">{message}</p>}
         </div>
-        <button className="market-primary" disabled={!valid || submitting} onClick={create}>
-          {submitting ? "ANUNCIANDO..." : "ANUNCIAR ITEM"}
+        <button
+          className="market-primary"
+          disabled={!valid || submitting}
+          onClick={create}
+        >
+          {submitting
+            ? offers
+              ? "PUBLICANDO..."
+              : "COLOCANDO À VENDA..."
+            : offers
+              ? "PUBLICAR PARA RECEBER OFERTAS"
+              : "COLOCAR À VENDA"}
         </button>
       </footer>
     </div>

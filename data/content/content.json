@@ -298,8 +298,8 @@
         "maxHp": 10
       },
       "skillIds": [
-        "baku_cannon",
         "baku_bite",
+        "baku_cannon",
         "baku_armor",
         "baku_placeholder"
       ],

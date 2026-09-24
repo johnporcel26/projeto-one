@@ -41,9 +41,22 @@ import { DepositPanel } from "./DepositPanel";
 import { HuntCenter } from "./HuntCenter";
 import "./hunt.css";
 const root = "/";
-const assets: Record<string, string> = new Proxy<Record<string, string>>({ ted: `${root}personagem/Player/idle/1.png` }, { get: (known, id) => known[id as string] ?? `${root}${itemDefinitions[id as string]?.icon ?? fruitDefinitions[id as string]?.icon ?? ""}` });
-const fruitNames: Record<FruitId, string> = new Proxy({}, { get: (_, id) => fruitDefinitions[id as string]?.name ?? String(id) }) as Record<FruitId, string>;
-const itemNames: Record<ItemId, string> = new Proxy({}, { get: (_, id) => itemDefinitions[id as string]?.displayName ?? String(id) }) as Record<ItemId, string>;
+const assets: Record<string, string> = new Proxy<Record<string, string>>(
+  { ted: `${root}personagem/Player/idle/1.png` },
+  {
+    get: (known, id) =>
+      known[id as string] ??
+      `${root}${itemDefinitions[id as string]?.icon ?? fruitDefinitions[id as string]?.icon ?? ""}`,
+  },
+);
+const fruitNames: Record<FruitId, string> = new Proxy(
+  {},
+  { get: (_, id) => fruitDefinitions[id as string]?.name ?? String(id) },
+) as Record<FruitId, string>;
+const itemNames: Record<ItemId, string> = new Proxy(
+  {},
+  { get: (_, id) => itemDefinitions[id as string]?.displayName ?? String(id) },
+) as Record<ItemId, string>;
 const lockedFruitSkills = (fruit: string) =>
   Array.from({ length: 4 }, (_, index) => ({
     id: `${fruit}_${index}`,
@@ -55,6 +68,17 @@ const lockedFruitSkills = (fruit: string) =>
     available: false,
     icon: undefined as string | undefined,
   }));
+const fruitSkillIcons: Record<string, string> = {
+  sube_bubbles: `${root}effects/fruits/sube/h1-1.png`,
+  sube_defense: `${root}effects/fruits/sube/h2-1.png`,
+  sube_evasion: `${root}effects/fruits/sube/h3-1.png`,
+  guro_blast: `${root}effects/fruits/guro/h1-1.png`,
+  guro_spin: `${root}effects/fruits/guro/h2-1.png`,
+  guro_crush: `${root}effects/fruits/guro/h3-1.png`,
+  baku_bite: `${root}effects/fruits/baku/h1-1.png`,
+  baku_cannon: `${root}effects/fruits/baku/h2-1.png`,
+  baku_armor: `${root}effects/fruits/baku/h3-1.png`,
+};
 const skillData: Record<
   FruitId,
   readonly {
@@ -90,7 +114,7 @@ const skillData: Record<
               ? "Próprio"
               : "—",
         available: skill.status === "AVAILABLE",
-        icon: skill.id === "guro_blast" ? `${root}effects/guro/explosion_01.png` : undefined,
+        icon: fruitSkillIcons[skill.id],
       };
     }),
   ]),
@@ -122,7 +146,8 @@ const nav: readonly {
   { id: "diary", label: "Diário", icon: BookOpen, status: "soon" },
   { id: "pass", label: "Passe", icon: Crown, status: "soon" },
   { id: "wiki", label: "Wiki", icon: Search, status: "soon" },
-  { id: "shop", label: "Loja", icon: Store, status: "soon" },
+  { id: "shop", label: "Loja", icon: Store, status: "available" },
+  { id: "premium", label: "Rubis", icon: Gem, status: "available" },
   { id: "market", label: "Mercado", icon: ShoppingBag, status: "available" },
   { id: "world", label: "Mundo", icon: Map, status: "available" },
   { id: "search", label: "Busca", icon: Search, status: "available" },
@@ -160,6 +185,7 @@ export function Hud({
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (document.querySelector(".premium-checkout-overlay")) return;
         closePanel();
         return;
       }
@@ -206,14 +232,75 @@ export function Hud({
         cooldowns={cooldowns}
         onUse={(id) => useSkill(id, onIntent)}
       />
+      <MarketSaleToasts />
       {panel && (
-        <HudWindow panel={panel} onClose={closePanel} onIntent={onIntent} onLogout={onLogout} />
+        <HudWindow
+          panel={panel}
+          onClose={closePanel}
+          onIntent={onIntent}
+          onLogout={onLogout}
+        />
       )}
     </div>
   );
 }
 function useSkill(id: string, onIntent: (intent: unknown) => void): void {
   onIntent({ type: "useSkill", skillId: id });
+}
+function MarketSaleToasts(): JSX.Element {
+  const [sales, setSales] = useState<
+    readonly {
+      id: string;
+      itemId: string;
+      quantity: number;
+      currency: "berries" | "rubies";
+      feeAmount: number;
+      receivedAmount: number;
+    }[]
+  >([]);
+  useEffect(() => {
+    const receive = (event: Event) => {
+      const sale = (event as CustomEvent).detail;
+      if (!sale?.id) return;
+      setSales((current) =>
+        current.some((entry) => entry.id === sale.id)
+          ? current
+          : [...current, sale].slice(-3),
+      );
+      window.setTimeout(
+        () =>
+          setSales((current) =>
+            current.filter((entry) => entry.id !== sale.id),
+          ),
+        5200,
+      );
+    };
+    window.addEventListener("market-sale", receive);
+    return () => window.removeEventListener("market-sale", receive);
+  }, []);
+  return (
+    <aside className="market-sale-toasts" aria-live="polite">
+      {sales.map((sale) => (
+        <article key={sale.id}>
+          <img src={assets[sale.itemId]} alt="" />
+          <div>
+            <strong>VENDA CONCLUÍDA!</strong>
+            <span>
+              {itemNames[sale.itemId]} ×{sale.quantity} foi vendido.
+            </span>
+            <b>
+              Você recebeu {sale.receivedAmount}{" "}
+              {sale.currency === "rubies" ? "Rubis" : "Berries"}.
+            </b>
+            <small>
+              Taxa do Mercado: {sale.feeAmount}{" "}
+              {sale.currency === "rubies" ? "Rubis" : "Berries"}.
+            </small>
+          </div>
+        </article>
+      ))}
+    </aside>
+  );
 }
 function PlayerStatus(): JSX.Element {
   const { snapshot } = useGameUi();
@@ -226,7 +313,10 @@ function PlayerStatus(): JSX.Element {
       <img className="avatar" src={assets.ted} alt="Retrato de Ted" />
       <div className="player-core">
         <strong>{player?.name ?? "Ted"}</strong>
-        <span>CAPITÃO · Lv. {player?.level ?? 1}</span>
+        <span>
+          CAPITÃO · Lv. {player?.level ?? 1}{" "}
+          {player?.vip.active && <b className="vip-title">VIP</b>}
+        </span>
         <Meter
           label={`HP ${player?.resources.currentHp ?? 100} / ${player?.stats.maxHp ?? 100}`}
           value={
@@ -321,20 +411,27 @@ function TopNavigation({
 function Minimap(): JSX.Element {
   const { snapshot } = useGameUi();
   const player = snapshot?.player;
+  const bounds = snapshot?.area === "ice_mountain"
+    ? { width: 1600, height: 1100, label: "Topo da Montanha de Gelo" }
+    : snapshot?.area === "beach_buffalo"
+      ? { width: 1600, height: 1100, label: "Praia do Buffalo" }
+      : snapshot?.area === "forest_alvida"
+        ? { width: 1600, height: 1100, label: "Floresta da Alvida" }
+        : { width: 1600, height: 1100, label: "Barco Pirata" };
+  const percentage = (value: number, span: number) =>
+    `${Math.max(8, Math.min(92, (value / span) * 100))}%`;
   return (
     <section className="minimap ui-panel">
       <header>
         <Map size={14} />{" "}
-        {snapshot?.area === "pirate_ship"
-          ? "Barco Pirata"
-          : "Floresta da Alvida"}
+        {bounds.label}
       </header>
       <div className="map-grid">
         <b
           className="player-dot"
           style={{
-            left: `${Math.max(8, Math.min(92, (player?.x ?? 720) / 16))}%`,
-            top: `${Math.max(8, Math.min(92, (player?.y ?? 520) / 11))}%`,
+            left: percentage(player?.x ?? 720, bounds.width),
+            top: percentage(player?.y ?? 520, bounds.height),
           }}
         />
         {snapshot?.enemies
@@ -342,7 +439,10 @@ function Minimap(): JSX.Element {
           .map((enemy) => (
             <i
               key={enemy.id}
-              style={{ left: `${enemy.x / 16}%`, top: `${enemy.y / 11}%` }}
+              style={{
+                left: percentage(enemy.x, bounds.width),
+                top: percentage(enemy.y, bounds.height),
+              }}
             />
           ))}
       </div>
@@ -357,7 +457,9 @@ function BattleSummary({
   const { snapshot, openPanel, logs } = useGameUi();
   const player = snapshot?.player;
   const analyzer = snapshot?.huntAnalyzer;
-  const activeHuntName = snapshot?.contentCatalog.public.hunts.find((hunt) => hunt.id === analyzer?.huntId)?.displayName;
+  const activeHuntName = snapshot?.contentCatalog.public.hunts.find(
+    (hunt) => hunt.id === analyzer?.huntId,
+  )?.displayName;
   const state = player?.autoHunt ?? "OFF";
   const active = analyzer?.status === "ACTIVE";
   const duration = analyzer ? Math.floor(analyzer.durationMs / 1000) : 0;
@@ -377,7 +479,7 @@ function BattleSummary({
         <button onClick={() => openPanel("analysis")}>DETALHES</button>
       </header>
       <strong>
-        {active ? activeHuntName ?? analyzer?.huntId : "Nenhuma Hunt ativa"}
+        {active ? (activeHuntName ?? analyzer?.huntId) : "Nenhuma Hunt ativa"}
       </strong>
       <small>
         {active ? `Tempo: ${time}` : "Última sessão disponível em Detalhes"}
@@ -573,7 +675,12 @@ function SkillBar({
           >
             <span className="key">{index + 1}</span>
             {skill.icon ? (
-              <img className="skill-icon-art" src={skill.icon} alt="" aria-hidden="true" />
+              <img
+                className="skill-icon-art"
+                src={skill.icon}
+                alt=""
+                aria-hidden="true"
+              />
             ) : (
               <Zap size={23} />
             )}
@@ -647,59 +754,561 @@ function HudWindow({
     </div>
   );
 }
-function BotPanel({ player, onIntent }: { player?: PlayerSnapshot; onIntent: (intent: unknown) => void }): JSX.Element {
-  const fruit = player?.activeFruitId ? fruitDefinitions[player.activeFruitId] : undefined;
+function BotPanel({
+  player,
+  onIntent,
+}: {
+  player?: PlayerSnapshot;
+  onIntent: (intent: unknown) => void;
+}): JSX.Element {
+  const fruit = player?.activeFruitId
+    ? fruitDefinitions[player.activeFruitId]
+    : undefined;
   const initial = player?.autoHuntSettings;
-  const [settings, setSettings] = useState(() => initial ?? { autoUseConsumables: false, hpPotionEnabled: true, hpThresholdPercent: 40, manaPotionEnabled: false, manaThresholdPercent: 30, potionPreference: "SMART" as const, utilityMode: "AUTO" as const, basicAttackEnabled: true, targetPriority: "NEAREST" as const, skillPolicies: {} });
-  const skills = fruit?.skillIds.map((id, index) => ({ id, index, definition: skillDefinitions[id] })) ?? [];
-  const policy = (id: string, index: number) => settings.skillPolicies[id] ?? { enabled: true, priority: index + 1, condition: "ALWAYS" as const, hpThresholdPercent: 40 };
-  const setPolicy = (id: string, index: number, update: Partial<ReturnType<typeof policy>>) => setSettings((current) => ({ ...current, skillPolicies: { ...current.skillPolicies, [id]: { ...policy(id, index), ...update } } }));
-  return <section className="bot-panel"><header><div><span className="eyebrow">COMANDO DE BORDO</span><h3>Bot / Auto-Hunt</h3></div><button onClick={() => onIntent({ type: "toggleAutoHunt" })}>AUTO-HUNT: <b>{player?.autoHunt ?? "OFF"}</b></button></header><label>Prioridade do alvo<select value={settings.targetPriority} onChange={(event) => setSettings({ ...settings, targetPriority: event.target.value as typeof settings.targetPriority })}><option value="NEAREST">Mais próximo</option><option value="LOWEST_HP">Menor HP</option><option value="HIGHEST_HP">Maior HP</option></select></label><label><input type="checkbox" checked={settings.basicAttackEnabled} onChange={(event) => setSettings({ ...settings, basicAttackEnabled: event.target.checked })} /> Ataque básico</label><h4>Habilidades</h4>{fruit ? skills.map(({ id, index, definition }) => { const current = policy(id, index), available = definition?.status === "AVAILABLE"; return <article className={!available ? "bot-skill locked" : "bot-skill"} key={id}><b>{index + 1}. {definition?.displayName ?? "Bloqueada"}</b><label><input disabled={!available} type="checkbox" checked={available && current.enabled} onChange={(event) => setPolicy(id, index, { enabled: event.target.checked })} /> Usar</label><label>Prioridade<select disabled={!available} value={current.priority} onChange={(event) => setPolicy(id, index, { priority: Number(event.target.value) })}>{[1,2,3,4].map((value) => <option key={value}>{value}</option>)}</select></label><label>Condição<select disabled={!available} value={current.condition} onChange={(event) => setPolicy(id, index, { condition: event.target.value as "ALWAYS" | "HP_BELOW" })}><option value="ALWAYS">Sempre disponível</option><option value="HP_BELOW">HP abaixo de</option></select></label>{current.condition === "HP_BELOW" && <label>HP {current.hpThresholdPercent}%<input type="range" min="1" max="99" value={current.hpThresholdPercent} onChange={(event) => setPolicy(id, index, { hpThresholdPercent: Number(event.target.value) })} /></label>}</article>; }) : <p className="empty-note">Nenhuma Akuma no Mi equipada. O Bot poderá usar apenas ataque básico.</p>}<h4>Sobrevivência</h4><label><input type="checkbox" checked={settings.autoUseConsumables} onChange={(event) => setSettings({ ...settings, autoUseConsumables: event.target.checked })} /> Usar poções da barra de utilidades</label><label>HP abaixo de: {settings.hpThresholdPercent}%<input type="range" min="1" max="99" value={settings.hpThresholdPercent} onChange={(event) => setSettings({ ...settings, hpThresholdPercent: Number(event.target.value) })} /></label><button className="primary" onClick={() => onIntent({ type: "updateAutoHuntSettings", settings })}>SALVAR CONFIGURAÇÃO</button></section>;
+  const [settings, setSettings] = useState(
+    () =>
+      initial ?? {
+        autoUseConsumables: false,
+        hpPotionEnabled: true,
+        hpThresholdPercent: 40,
+        manaPotionEnabled: false,
+        manaThresholdPercent: 30,
+        potionPreference: "SMART" as const,
+        utilityMode: "AUTO" as const,
+        basicAttackEnabled: true,
+        targetPriority: "NEAREST" as const,
+        skillPolicies: {},
+      },
+  );
+  const skills =
+    fruit?.skillIds.map((id, index) => ({
+      id,
+      index,
+      definition: skillDefinitions[id],
+    })) ?? [];
+  const policy = (id: string, index: number) =>
+    settings.skillPolicies[id] ?? {
+      enabled: true,
+      priority: index + 1,
+      condition: "ALWAYS" as const,
+      hpThresholdPercent: 40,
+    };
+  const setPolicy = (
+    id: string,
+    index: number,
+    update: Partial<ReturnType<typeof policy>>,
+  ) =>
+    setSettings((current) => ({
+      ...current,
+      skillPolicies: {
+        ...current.skillPolicies,
+        [id]: { ...policy(id, index), ...update },
+      },
+    }));
+  return (
+    <section className="bot-panel">
+      <header>
+        <div>
+          <span className="eyebrow">COMANDO DE BORDO</span>
+          <h3>Bot / Auto-Hunt</h3>
+        </div>
+        <button onClick={() => onIntent({ type: "toggleAutoHunt" })}>
+          AUTO-HUNT: <b>{player?.autoHunt ?? "OFF"}</b>
+        </button>
+      </header>
+      <label>
+        Prioridade do alvo
+        <select
+          value={settings.targetPriority}
+          onChange={(event) =>
+            setSettings({
+              ...settings,
+              targetPriority: event.target
+                .value as typeof settings.targetPriority,
+            })
+          }
+        >
+          <option value="NEAREST">Mais próximo</option>
+          <option value="LOWEST_HP">Menor HP</option>
+          <option value="HIGHEST_HP">Maior HP</option>
+        </select>
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.basicAttackEnabled}
+          onChange={(event) =>
+            setSettings({
+              ...settings,
+              basicAttackEnabled: event.target.checked,
+            })
+          }
+        />{" "}
+        Ataque básico
+      </label>
+      <h4>Habilidades</h4>
+      {fruit ? (
+        skills.map(({ id, index, definition }) => {
+          const current = policy(id, index),
+            available = definition?.status === "AVAILABLE";
+          return (
+            <article
+              className={!available ? "bot-skill locked" : "bot-skill"}
+              key={id}
+            >
+              <b>
+                {index + 1}. {definition?.displayName ?? "Bloqueada"}
+              </b>
+              <label>
+                <input
+                  disabled={!available}
+                  type="checkbox"
+                  checked={available && current.enabled}
+                  onChange={(event) =>
+                    setPolicy(id, index, { enabled: event.target.checked })
+                  }
+                />{" "}
+                Usar
+              </label>
+              <label>
+                Prioridade
+                <select
+                  disabled={!available}
+                  value={current.priority}
+                  onChange={(event) =>
+                    setPolicy(id, index, {
+                      priority: Number(event.target.value),
+                    })
+                  }
+                >
+                  {[1, 2, 3, 4].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Condição
+                <select
+                  disabled={!available}
+                  value={current.condition}
+                  onChange={(event) =>
+                    setPolicy(id, index, {
+                      condition: event.target.value as "ALWAYS" | "HP_BELOW",
+                    })
+                  }
+                >
+                  <option value="ALWAYS">Sempre disponível</option>
+                  <option value="HP_BELOW">HP abaixo de</option>
+                </select>
+              </label>
+              {current.condition === "HP_BELOW" && (
+                <label>
+                  HP {current.hpThresholdPercent}%
+                  <input
+                    type="range"
+                    min="1"
+                    max="99"
+                    value={current.hpThresholdPercent}
+                    onChange={(event) =>
+                      setPolicy(id, index, {
+                        hpThresholdPercent: Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+              )}
+            </article>
+          );
+        })
+      ) : (
+        <p className="empty-note">
+          Nenhuma Akuma no Mi equipada. O Bot poderá usar apenas ataque básico.
+        </p>
+      )}
+      <h4>Sobrevivência</h4>
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.autoUseConsumables}
+          onChange={(event) =>
+            setSettings({
+              ...settings,
+              autoUseConsumables: event.target.checked,
+            })
+          }
+        />{" "}
+        Usar poções da barra de utilidades
+      </label>
+      <label>
+        HP abaixo de: {settings.hpThresholdPercent}%
+        <input
+          type="range"
+          min="1"
+          max="99"
+          value={settings.hpThresholdPercent}
+          onChange={(event) =>
+            setSettings({
+              ...settings,
+              hpThresholdPercent: Number(event.target.value),
+            })
+          }
+        />
+      </label>
+      <button
+        className="primary"
+        onClick={() => onIntent({ type: "updateAutoHuntSettings", settings })}
+      >
+        SALVAR CONFIGURAÇÃO
+      </button>
+    </section>
+  );
 }
 type AnalyzerTab = "current" | "history" | "compare";
 const analyzerTime = (durationMs: number): string => {
   const seconds = Math.floor(durationMs / 1000);
   return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds / 60) % 60).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 };
-const analyzerRate = (value: number, durationMs: number): string => durationMs > 0 ? Math.floor(value * 3_600_000 / durationMs).toLocaleString("pt-BR") : "0";
-function HuntAnalyzerPanel({ snapshot, onIntent }: { snapshot: ReturnType<typeof useGameUi>["snapshot"]; onIntent: (intent: unknown) => void }): JSX.Element {
+const analyzerRate = (value: number, durationMs: number): string =>
+  durationMs > 0
+    ? Math.floor((value * 3_600_000) / durationMs).toLocaleString("pt-BR")
+    : "0";
+function HuntAnalyzerPanel({
+  snapshot,
+  onIntent,
+}: {
+  snapshot: ReturnType<typeof useGameUi>["snapshot"];
+  onIntent: (intent: unknown) => void;
+}): JSX.Element {
   const [tab, setTab] = useState<AnalyzerTab>("current");
   const [lootFilter, setLootFilter] = useState("all");
   const [sort, setSort] = useState<"quantity" | "value" | "name">("quantity");
   const current = snapshot?.huntAnalyzer;
   const history = snapshot?.huntAnalyzerHistory ?? [];
   const catalog = snapshot?.contentCatalog.public;
-  const huntName = (huntId: string | null) => catalog?.hunts.find((hunt) => hunt.id === huntId)?.displayName ?? huntId ?? "Nenhuma Hunt ativa";
+  const huntName = (huntId: string | null) =>
+    catalog?.hunts.find((hunt) => hunt.id === huntId)?.displayName ??
+    huntId ??
+    "Nenhuma Hunt ativa";
   const lootRows = (session?: HuntAnalyzerSnapshot) => {
     if (!session || !catalog) return [];
-    const entries = [...Object.entries(session.lootByItemId), ...Object.entries(session.fruitDrops)];
-    return entries.map(([id, quantity]) => {
-      const item = catalog.items.find((entry) => entry.id === id);
-      const fruit = catalog.fruits.find((entry) => entry.id === id);
-      const known = item ?? fruit;
-      return { id, quantity: quantity ?? 0, name: known?.displayName ?? id, category: item?.category ?? (fruit ? "fruit" : "other"), rarity: known?.rarity ?? "desconhecida", value: (item?.sellValue ?? 0) * (quantity ?? 0), iconPath: known?.iconPath };
-    }).filter((entry) => lootFilter === "all" || entry.category === lootFilter).sort((left, right) => sort === "name" ? left.name.localeCompare(right.name, "pt-BR") : right[sort] - left[sort]);
+    const entries = [
+      ...Object.entries(session.lootByItemId),
+      ...Object.entries(session.fruitDrops),
+    ];
+    return entries
+      .map(([id, quantity]) => {
+        const item = catalog.items.find((entry) => entry.id === id);
+        const fruit = catalog.fruits.find((entry) => entry.id === id);
+        const known = item ?? fruit;
+        return {
+          id,
+          quantity: quantity ?? 0,
+          name: known?.displayName ?? id,
+          category: item?.category ?? (fruit ? "fruit" : "other"),
+          rarity: known?.rarity ?? "desconhecida",
+          value: (item?.sellValue ?? 0) * (quantity ?? 0),
+          iconPath: known?.iconPath,
+        };
+      })
+      .filter((entry) => lootFilter === "all" || entry.category === lootFilter)
+      .sort((left, right) =>
+        sort === "name"
+          ? left.name.localeCompare(right.name, "pt-BR")
+          : right[sort] - left[sort],
+      );
   };
-  const selected = current?.status === "ACTIVE" ? current : history[0] ?? current;
+  const selected =
+    current?.status === "ACTIVE" ? current : (history[0] ?? current);
   const rows = lootRows(selected);
-  const groups = useMemo(() => Object.values(history.reduce<Record<string, HuntAnalyzerSnapshot[]>>((all, session) => { (all[session.huntId ?? "unknown"] ??= []).push(session); return all; }, {})), [history]);
-  const reset = () => { if (current?.huntId && window.confirm("Encerrar a sessão atual e iniciar uma nova análise desta mesma Hunt? O histórico anterior será preservado.")) onIntent({ type: "resetHuntAnalyzer" }); };
-  const stats = (session?: HuntAnalyzerSnapshot) => <div className="analyzer-stats">
-    <Stat label="Tempo" value={analyzerTime(session?.durationMs ?? 0)} /><Stat label="Kills" value={String(session?.totalKills ?? 0)} />
-    <Stat label="Kills/h" value={analyzerRate(session?.totalKills ?? 0, session?.durationMs ?? 0)} /><Stat label="XP" value={(session?.xpGained ?? 0).toLocaleString("pt-BR")} />
-    <Stat label="XP/h" value={analyzerRate(session?.xpGained ?? 0, session?.durationMs ?? 0)} /><Stat label="Berries" value={(session?.berriesGained ?? 0).toLocaleString("pt-BR")} />
-    <Stat label="Berries/h" value={analyzerRate(session?.berriesGained ?? 0, session?.durationMs ?? 0)} /><Stat label="Valor de loot" value={(session?.estimatedLootValue ?? 0).toLocaleString("pt-BR")} />
-    <Stat label="Dano causado" value={(session?.damageDealt ?? 0).toLocaleString("pt-BR")} /><Stat label="Dano recebido" value={(session?.damageTaken ?? 0).toLocaleString("pt-BR")} />
-  </div>;
-  return <section className="hunt-analyzer-panel">
-    <nav className="analyzer-tabs">{([ ["current", "SESSÃO ATUAL"], ["history", `HISTÓRICO (${history.length})`], ["compare", "COMPARAR"] ] as const).map(([id, label]) => <button className={tab === id ? "active" : ""} key={id} onClick={() => setTab(id)}>{label}</button>)}</nav>
-    {tab === "current" && <><header className="analyzer-heading"><div><span className="eyebrow">{current?.status === "ACTIVE" ? "EM ANDAMENTO" : "ÚLTIMA SESSÃO"}</span><h3>{huntName(selected?.huntId ?? null)}</h3><small>{selected?.durationMs && selected.durationMs < 60_000 ? "Amostra curta: as taxas/h podem oscilar." : "Dados registrados pelo servidor."}</small></div><button className="analyzer-reset" disabled={!current?.huntId} onClick={reset}>REINICIAR ANÁLISE</button></header>{stats(selected)}<AnalyzerLoot rows={rows} filter={lootFilter} setFilter={setLootFilter} sort={sort} setSort={setSort} /></>}
-    {tab === "history" && <div className="analyzer-history">{history.length ? history.map((session) => <article key={session.sessionId}><header><div><b>{huntName(session.huntId)}</b><small>{session.endedAt ? new Date(session.endedAt).toLocaleString("pt-BR") : "Sessão encerrada"}</small></div><span>{analyzerTime(session.durationMs)}</span></header>{stats(session)}<small>{session.durationMs < 60_000 ? "Amostra curta." : `${session.totalKills} kills · ${analyzerRate(session.xpGained, session.durationMs)} XP/h`}</small></article>) : <p className="empty-note">Nenhuma sessão finalizada nesta conexão ainda.</p>}</div>}
-    {tab === "compare" && <div className="analyzer-compare">{groups.length ? groups.map((sessions) => { const total = sessions.reduce((sum, session) => ({ durationMs: sum.durationMs + session.durationMs, totalKills: sum.totalKills + session.totalKills, xpGained: sum.xpGained + session.xpGained, berriesGained: sum.berriesGained + session.berriesGained, estimatedLootValue: sum.estimatedLootValue + session.estimatedLootValue }), { durationMs: 0, totalKills: 0, xpGained: 0, berriesGained: 0, estimatedLootValue: 0 }); return <article key={sessions[0].huntId}><h3>{huntName(sessions[0].huntId)}</h3><small>{sessions.length} {sessions.length === 1 ? "sessão" : "sessões"} · {analyzerTime(total.durationMs)}</small><div><Stat label="Kills/h" value={analyzerRate(total.totalKills, total.durationMs)} /><Stat label="XP/h" value={analyzerRate(total.xpGained, total.durationMs)} /><Stat label="Berries/h" value={analyzerRate(total.berriesGained, total.durationMs)} /><Stat label="Valor/h" value={analyzerRate(total.estimatedLootValue, total.durationMs)} /></div>{total.durationMs < 60_000 && <small>Amostra curta.</small>}</article>; }) : <p className="empty-note">Finalize uma sessão para comparar suas Hunts.</p>}</div>}
-  </section>;
+  const groups = useMemo(
+    () =>
+      Object.values(
+        history.reduce<Record<string, HuntAnalyzerSnapshot[]>>(
+          (all, session) => {
+            (all[session.huntId ?? "unknown"] ??= []).push(session);
+            return all;
+          },
+          {},
+        ),
+      ),
+    [history],
+  );
+  const reset = () => {
+    if (
+      current?.huntId &&
+      window.confirm(
+        "Encerrar a sessão atual e iniciar uma nova análise desta mesma Hunt? O histórico anterior será preservado.",
+      )
+    )
+      onIntent({ type: "resetHuntAnalyzer" });
+  };
+  const stats = (session?: HuntAnalyzerSnapshot) => (
+    <div className="analyzer-stats">
+      <Stat label="Tempo" value={analyzerTime(session?.durationMs ?? 0)} />
+      <Stat label="Kills" value={String(session?.totalKills ?? 0)} />
+      <Stat
+        label="Kills/h"
+        value={analyzerRate(session?.totalKills ?? 0, session?.durationMs ?? 0)}
+      />
+      <Stat
+        label="XP"
+        value={(session?.xpGained ?? 0).toLocaleString("pt-BR")}
+      />
+      <Stat
+        label="XP/h"
+        value={analyzerRate(session?.xpGained ?? 0, session?.durationMs ?? 0)}
+      />
+      <Stat
+        label="Berries"
+        value={(session?.berriesGained ?? 0).toLocaleString("pt-BR")}
+      />
+      <Stat
+        label="Berries/h"
+        value={analyzerRate(
+          session?.berriesGained ?? 0,
+          session?.durationMs ?? 0,
+        )}
+      />
+      <Stat
+        label="Valor de loot"
+        value={(session?.estimatedLootValue ?? 0).toLocaleString("pt-BR")}
+      />
+      <Stat
+        label="Dano causado"
+        value={(session?.damageDealt ?? 0).toLocaleString("pt-BR")}
+      />
+      <Stat
+        label="Dano recebido"
+        value={(session?.damageTaken ?? 0).toLocaleString("pt-BR")}
+      />
+    </div>
+  );
+  return (
+    <section className="hunt-analyzer-panel">
+      <nav className="analyzer-tabs">
+        {(
+          [
+            ["current", "SESSÃO ATUAL"],
+            ["history", `HISTÓRICO (${history.length})`],
+            ["compare", "COMPARAR"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            className={tab === id ? "active" : ""}
+            key={id}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {tab === "current" && (
+        <>
+          <header className="analyzer-heading">
+            <div>
+              <span className="eyebrow">
+                {current?.status === "ACTIVE"
+                  ? "EM ANDAMENTO"
+                  : "ÚLTIMA SESSÃO"}
+              </span>
+              <h3>{huntName(selected?.huntId ?? null)}</h3>
+              <small>
+                {selected?.durationMs && selected.durationMs < 60_000
+                  ? "Amostra curta: as taxas/h podem oscilar."
+                  : "Dados registrados pelo servidor."}
+              </small>
+            </div>
+            <button
+              className="analyzer-reset"
+              disabled={!current?.huntId}
+              onClick={reset}
+            >
+              REINICIAR ANÁLISE
+            </button>
+          </header>
+          {stats(selected)}
+          <AnalyzerLoot
+            rows={rows}
+            filter={lootFilter}
+            setFilter={setLootFilter}
+            sort={sort}
+            setSort={setSort}
+          />
+        </>
+      )}
+      {tab === "history" && (
+        <div className="analyzer-history">
+          {history.length ? (
+            history.map((session) => (
+              <article key={session.sessionId}>
+                <header>
+                  <div>
+                    <b>{huntName(session.huntId)}</b>
+                    <small>
+                      {session.endedAt
+                        ? new Date(session.endedAt).toLocaleString("pt-BR")
+                        : "Sessão encerrada"}
+                    </small>
+                  </div>
+                  <span>{analyzerTime(session.durationMs)}</span>
+                </header>
+                {stats(session)}
+                <small>
+                  {session.durationMs < 60_000
+                    ? "Amostra curta."
+                    : `${session.totalKills} kills · ${analyzerRate(session.xpGained, session.durationMs)} XP/h`}
+                </small>
+              </article>
+            ))
+          ) : (
+            <p className="empty-note">
+              Nenhuma sessão finalizada nesta conexão ainda.
+            </p>
+          )}
+        </div>
+      )}
+      {tab === "compare" && (
+        <div className="analyzer-compare">
+          {groups.length ? (
+            groups.map((sessions) => {
+              const total = sessions.reduce(
+                (sum, session) => ({
+                  durationMs: sum.durationMs + session.durationMs,
+                  totalKills: sum.totalKills + session.totalKills,
+                  xpGained: sum.xpGained + session.xpGained,
+                  berriesGained: sum.berriesGained + session.berriesGained,
+                  estimatedLootValue:
+                    sum.estimatedLootValue + session.estimatedLootValue,
+                }),
+                {
+                  durationMs: 0,
+                  totalKills: 0,
+                  xpGained: 0,
+                  berriesGained: 0,
+                  estimatedLootValue: 0,
+                },
+              );
+              return (
+                <article key={sessions[0].huntId}>
+                  <h3>{huntName(sessions[0].huntId)}</h3>
+                  <small>
+                    {sessions.length}{" "}
+                    {sessions.length === 1 ? "sessão" : "sessões"} ·{" "}
+                    {analyzerTime(total.durationMs)}
+                  </small>
+                  <div>
+                    <Stat
+                      label="Kills/h"
+                      value={analyzerRate(total.totalKills, total.durationMs)}
+                    />
+                    <Stat
+                      label="XP/h"
+                      value={analyzerRate(total.xpGained, total.durationMs)}
+                    />
+                    <Stat
+                      label="Berries/h"
+                      value={analyzerRate(
+                        total.berriesGained,
+                        total.durationMs,
+                      )}
+                    />
+                    <Stat
+                      label="Valor/h"
+                      value={analyzerRate(
+                        total.estimatedLootValue,
+                        total.durationMs,
+                      )}
+                    />
+                  </div>
+                  {total.durationMs < 60_000 && <small>Amostra curta.</small>}
+                </article>
+              );
+            })
+          ) : (
+            <p className="empty-note">
+              Finalize uma sessão para comparar suas Hunts.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }
-type AnalyzerLootRow = { id: string; quantity: number; name: string; category: string; rarity: string; value: number; iconPath?: string };
-function AnalyzerLoot({ rows, filter, setFilter, sort, setSort }: { rows: AnalyzerLootRow[]; filter: string; setFilter: (value: string) => void; sort: "quantity" | "value" | "name"; setSort: (value: "quantity" | "value" | "name") => void }): JSX.Element { return <section className="analyzer-loot"><header><h3>Loot coletado</h3><div><select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Tudo</option><option value="material">Materiais</option><option value="consumable">Consumíveis</option><option value="equipment">Equipamentos</option><option value="fruit">Akuma no Mi</option><option value="other">Outros</option></select><select value={sort} onChange={(event) => setSort(event.target.value as "quantity" | "value" | "name")}><option value="quantity">Quantidade</option><option value="value">Valor</option><option value="name">Nome</option></select></div></header><div className="analyzer-loot-grid">{rows.length ? rows.map((entry) => <article key={entry.id}><img src={entry.iconPath ? `${root}${entry.iconPath.replace(/^\//, "")}` : assets[entry.id]} alt="" /><b>{entry.name}</b><small>{entry.rarity}</small><span>×{entry.quantity}</span><em>{entry.value ? `${entry.value} B$` : "—"}</em></article>) : <p className="empty-note">Nenhum loot nessa categoria.</p>}</div></section>; }
+type AnalyzerLootRow = {
+  id: string;
+  quantity: number;
+  name: string;
+  category: string;
+  rarity: string;
+  value: number;
+  iconPath?: string;
+};
+function AnalyzerLoot({
+  rows,
+  filter,
+  setFilter,
+  sort,
+  setSort,
+}: {
+  rows: AnalyzerLootRow[];
+  filter: string;
+  setFilter: (value: string) => void;
+  sort: "quantity" | "value" | "name";
+  setSort: (value: "quantity" | "value" | "name") => void;
+}): JSX.Element {
+  return (
+    <section className="analyzer-loot">
+      <header>
+        <h3>Loot coletado</h3>
+        <div>
+          <select
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+          >
+            <option value="all">Tudo</option>
+            <option value="material">Materiais</option>
+            <option value="consumable">Consumíveis</option>
+            <option value="equipment">Equipamentos</option>
+            <option value="fruit">Akuma no Mi</option>
+            <option value="other">Outros</option>
+          </select>
+          <select
+            value={sort}
+            onChange={(event) =>
+              setSort(event.target.value as "quantity" | "value" | "name")
+            }
+          >
+            <option value="quantity">Quantidade</option>
+            <option value="value">Valor</option>
+            <option value="name">Nome</option>
+          </select>
+        </div>
+      </header>
+      <div className="analyzer-loot-grid">
+        {rows.length ? (
+          rows.map((entry) => (
+            <article key={entry.id}>
+              <img
+                src={
+                  entry.iconPath
+                    ? `${root}${entry.iconPath.replace(/^\//, "")}`
+                    : assets[entry.id]
+                }
+                alt=""
+              />
+              <b>{entry.name}</b>
+              <small>{entry.rarity}</small>
+              <span>×{entry.quantity}</span>
+              <em>{entry.value ? `${entry.value} B$` : "—"}</em>
+            </article>
+          ))
+        ) : (
+          <p className="empty-note">Nenhum loot nessa categoria.</p>
+        )}
+      </div>
+    </section>
+  );
+}
 function PanelContent({
   panel,
   snapshot,
@@ -716,8 +1325,10 @@ function PanelContent({
   const player = snapshot?.player;
   const { uiScale, setUiScale } = useGameUi();
   if (panel === "inventory") return <InventoryPanel />;
-  if (panel === "deposit") return <DepositPanel snapshot={snapshot} onIntent={onIntent} />;
+  if (panel === "deposit")
+    return <DepositPanel snapshot={snapshot} onIntent={onIntent} />;
   if (panel === "market") return <PremiumMarketPanel onIntent={onIntent} />;
+  if (panel === "premium") return <PremiumPanel onIntent={onIntent} />;
   if (panel === "profile")
     return (
       <div className="profile-panel">
@@ -755,9 +1366,13 @@ function PanelContent({
         </div>
       </div>
     );
-  if (panel === "hunts") return <HuntCenter snapshot={snapshot} onIntent={onIntent} onClose={onClose} />;
+  if (panel === "hunts")
+    return (
+      <HuntCenter snapshot={snapshot} onIntent={onIntent} onClose={onClose} />
+    );
   if (panel === "bot") return <BotPanel player={player} onIntent={onIntent} />;
-  if (panel === "analysis") return <HuntAnalyzerPanel snapshot={snapshot} onIntent={onIntent} />;
+  if (panel === "analysis")
+    return <HuntAnalyzerPanel snapshot={snapshot} onIntent={onIntent} />;
   if (panel === "catalog") return <CatalogPanel snapshot={snapshot} />;
   if (panel === "world")
     return (
@@ -789,11 +1404,15 @@ function PanelContent({
           </select>
           %
         </label>
-        <button disabled>Volume <span>Disponível no login</span></button>
+        <button disabled>
+          Volume <span>Disponível no login</span>
+        </button>
         <button disabled>
           Tela cheia <span>Em desenvolvimento</span>
         </button>
-        <button onClick={onLogout}>SAIR DO JOGO <span>Logout seguro</span></button>
+        <button onClick={onLogout}>
+          SAIR DO JOGO <span>Logout seguro</span>
+        </button>
       </div>
     );
   return (
@@ -1026,7 +1645,12 @@ function InventoryPanel({
         },
       }),
     );
-  const sellAll = () => window.dispatchEvent(new CustomEvent("game-intent", { detail: { type: "sellAll", excludedItemIds: [...locked] } }));
+  const sellAll = () =>
+    window.dispatchEvent(
+      new CustomEvent("game-intent", {
+        detail: { type: "sellAll", excludedItemIds: [...locked] },
+      }),
+    );
   const action = (
     id: ItemId,
     kind: "info" | "equip" | "unequip" | "sell" | "link" | "lock",
@@ -1068,11 +1692,7 @@ function InventoryPanel({
       </div>
       {!searchOnly && (
         <div className="inventory-actions">
-          <button
-            onClick={sellAll}
-          >
-            VENDER TUDO
-          </button>
+          <button onClick={sellAll}>VENDER TUDO</button>
           <button
             onClick={() => sell([...selected].filter((id) => !locked.has(id)))}
           >
@@ -1085,7 +1705,15 @@ function InventoryPanel({
         {stacks.map((stack) => {
           const open = menuId === stack.itemId;
           const fruit = stack.itemId.startsWith("fruit_");
-          const rarity = snapshot?.contentCatalog.public.items.find((item) => item.id === stack.itemId)?.rarity ?? snapshot?.contentCatalog.public.fruits.find((item) => item.id === stack.itemId)?.rarity ?? (fruit ? fruitDefinitions[stack.itemId]?.rarity : "common") ?? "common";
+          const rarity =
+            snapshot?.contentCatalog.public.items.find(
+              (item) => item.id === stack.itemId,
+            )?.rarity ??
+            snapshot?.contentCatalog.public.fruits.find(
+              (item) => item.id === stack.itemId,
+            )?.rarity ??
+            (fruit ? fruitDefinitions[stack.itemId]?.rarity : "common") ??
+            "common";
           return (
             <article
               key={stack.itemId}
@@ -1116,7 +1744,9 @@ function InventoryPanel({
               <b>×{stack.quantity}</b>
               <button
                 className="item-lock-toggle"
-                aria-label={locked.has(stack.itemId) ? "Destravar item" : "Travar item"}
+                aria-label={
+                  locked.has(stack.itemId) ? "Destravar item" : "Travar item"
+                }
                 title={locked.has(stack.itemId) ? "Travado" : "Destravado"}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -1415,39 +2045,491 @@ function ShopPanel({
   onIntent: (intent: unknown) => void;
 }): JSX.Element {
   const { snapshot } = useGameUi();
-  const goods = shopDefinitions[0].itemIds.map((id) => ({
-    id,
-    price: itemDefinitions[id].buyValue ?? 0,
-    description:
-      id === "item_potion_small"
-        ? "Recupera vida em combate."
-        : "Recuperação reforçada para a jornada.",
-  }));
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("TODOS");
+  const [selectedId, setSelectedId] = useState<ItemId | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [notice, setNotice] = useState("");
+  const items = useMemo(() => {
+    const definitions = snapshot?.contentCatalog.items ?? [];
+    const publicItems = snapshot?.contentCatalog.public.items ?? [];
+    return definitions
+      .filter((item) => (item.buyValue ?? 0) > 0 && item.shopBuyable)
+      .map((item) => {
+        const publicItem = publicItems.find((entry) => entry.id === item.id);
+        return {
+          ...item,
+          description: publicItem?.description ?? "Item disponível no armazém.",
+          rarity: publicItem?.rarity ?? "COMMON",
+        };
+      });
+  }, [snapshot?.contentCatalog.items, snapshot?.contentCatalog.public.items]);
+  const categories = useMemo(
+    () => [
+      "TODOS",
+      ...new Set(items.map((item) => item.category.toUpperCase())),
+    ],
+    [items],
+  );
+  const visible = items.filter((item) => {
+    const haystack = `${item.displayName} ${item.description}`.toLowerCase();
+    return (
+      (category === "TODOS" || item.category.toUpperCase() === category) &&
+      haystack.includes(query.toLowerCase())
+    );
+  });
+  const selected = items.find((item) => item.id === selectedId) ?? visible[0];
+  const price = selected?.buyValue ?? 0;
+  const balance = snapshot?.player.wallet.berries ?? 0;
+  const total = price * quantity;
+  useEffect(() => {
+    if (selected && selected.id !== selectedId) setSelectedId(selected.id);
+  }, [selected, selectedId]);
+  useEffect(() => {
+    setQuantity(1);
+  }, [selectedId]);
   return (
-    <section className="shop-panel">
-      <header>
-        <span className="eyebrow">ARMAZÉM DO CAPITÃO</span>
+    <section className="shop-panel modern-shop">
+      <header className="modern-shop-header">
+        <div>
+          <span className="eyebrow">ARMAZÉM DO CAPITÃO</span>
+          <h3>Loja</h3>
+        </div>
         <b>
-          <Coins size={15} /> {snapshot?.player.wallet.berries ?? 0} Berries
+          <Coins size={17} /> {balance} Berries
         </b>
       </header>
-      <div className="shop-grid">
-        {goods.map((good) => (
-          <article key={good.id}>
-            <img src={assets[good.id]} alt="" />
-            <div>
-              <h3>{itemNames[good.id]}</h3>
-              <p>{good.description}</p>
-              <small>{good.price} Berries</small>
-            </div>
-            <button
-              onClick={() => onIntent({ type: "buyItem", itemId: good.id })}
-            >
-              COMPRAR
-            </button>
-          </article>
-        ))}
+      <div className="shop-layout">
+        <aside className="shop-catalog">
+          <input
+            aria-label="Buscar item"
+            placeholder="BUSCAR ITEM..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <div className="shop-filters">
+            {categories.map((entry) => (
+              <button
+                key={entry}
+                className={category === entry ? "active" : ""}
+                onClick={() => setCategory(entry)}
+              >
+                {entry}
+              </button>
+            ))}
+          </div>
+          <div className="shop-catalog-grid">
+            {visible.map((item) => (
+              <button
+                key={item.id}
+                className={`shop-item-card rarity-${item.rarity.toLowerCase()} ${selected?.id === item.id ? "selected" : ""}`}
+                onClick={() => setSelectedId(item.id)}
+              >
+                <div className="item-icon-frame shop-item-icon">
+                  <img src={assets[item.id]} alt="" />
+                </div>
+                <span>{item.displayName}</span>
+                <small>{item.description}</small>
+                <b>
+                  <Coins size={13} /> {item.buyValue ?? 0}
+                </b>
+              </button>
+            ))}
+            {!visible.length && (
+              <p className="empty-note">Nenhum item encontrado.</p>
+            )}
+          </div>
+        </aside>
+        <section className="shop-detail">
+          {selected ? (
+            <>
+              <span className="eyebrow">ITEM SELECIONADO</span>
+              <div className="item-icon-frame shop-detail-icon">
+                <img src={assets[selected.id]} alt="" />
+              </div>
+              <h2>{selected.displayName}</h2>
+              <em
+                className={`rarity-label rarity-${selected.rarity.toLowerCase()}`}
+              >
+                {selected.rarity}
+              </em>
+              <p>{selected.description}</p>
+              <small>
+                {selected.usable
+                  ? "Item utilizável durante a jornada."
+                  : "Utilidade de navegação."}
+              </small>
+              <div className="shop-quantity">
+                <span>QUANTIDADE</span>
+                <div>
+                  <button
+                    onClick={() =>
+                      setQuantity((value) => Math.max(1, value - 1))
+                    }
+                  >
+                    −
+                  </button>
+                  <b>{quantity}</b>
+                  <button onClick={() => setQuantity((value) => value + 1)}>
+                    +
+                  </button>
+                  <button onClick={() => setQuantity((value) => value + 10)}>
+                    +10
+                  </button>
+                </div>
+              </div>
+              <div className="shop-total">
+                <span>
+                  {price} Berries × {quantity}
+                </span>
+                <b>TOTAL: {total} Berries</b>
+                <small>
+                  Saldo após compra: {Math.max(0, balance - total)} Berries
+                </small>
+              </div>
+              <button
+                className="shop-buy-cta"
+                disabled={total > balance}
+                onClick={() => {
+                  if (!selected) return;
+                  onIntent({ type: "buyItem", itemId: selected.id, quantity });
+                  setNotice(
+                    `${selected.displayName} ×${quantity} enviado para compra.`,
+                  );
+                }}
+              >
+                {total > balance
+                  ? "BERRIES INSUFICIENTES"
+                  : `COMPRAR ${quantity}`}
+              </button>
+            </>
+          ) : (
+            <p className="empty-note">
+              Selecione um item para ver os detalhes.
+            </p>
+          )}
+          {notice && <p className="shop-notice">{notice}</p>}
+        </section>
       </div>
+    </section>
+  );
+}
+function PremiumPanel({
+  onIntent,
+}: {
+  onIntent: (intent: unknown) => void;
+}): JSX.Element {
+  const { snapshot } = useGameUi();
+  const [tab, setTab] = useState<"rubies" | "vip" | "pass" | "founder">(
+    "rubies",
+  );
+  const [packages, setPackages] = useState<
+    readonly {
+      id: string;
+      displayName: string;
+      rubies: number;
+      priceCents: number;
+      currency: string;
+    }[]
+  >([]);
+  const [development, setDevelopment] = useState(false);
+  const [pendingPurchase, setPendingPurchase] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const [checkoutPackage, setCheckoutPackage] = useState<
+    (typeof packages)[number] | null
+  >(null);
+  const [checkoutState, setCheckoutState] = useState<
+    "confirm" | "pending" | "success"
+  >("confirm");
+  useEffect(() => {
+    const closeCheckout = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && checkoutPackage) {
+        setCheckoutPackage(null);
+        setCheckoutState("confirm");
+        setNotice("");
+      }
+    };
+    window.addEventListener("keydown", closeCheckout);
+    return () => window.removeEventListener("keydown", closeCheckout);
+  }, [checkoutPackage]);
+  useEffect(() => {
+    const token = localStorage.getItem("project-one-session");
+    if (!token) return;
+    void fetch("http://localhost:8787/api/shop/catalog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.ok) {
+          setPackages(data.packages);
+          setDevelopment(Boolean(data.development));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+  const buyRubies = async (packageId: string) => {
+    const token = localStorage.getItem("project-one-session");
+    if (!token || pendingPurchase) return;
+    setNotice("");
+    const response = await fetch("http://localhost:8787/api/shop/purchase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, packageId }),
+    }).catch(() => undefined);
+    const data = response && (await response.json());
+    if (!data?.ok)
+      return setNotice(data?.message ?? "Não foi possível iniciar a compra.");
+    setPendingPurchase(data.purchase.id);
+    setCheckoutState("pending");
+    setNotice(
+      development
+        ? "Checkout de desenvolvimento criado. Aprove para testar o fluxo."
+        : "Checkout criado. Aguarde a confirmação do provedor.",
+    );
+  };
+  const approveDevPurchase = async () => {
+    const token = localStorage.getItem("project-one-session");
+    if (!token || !pendingPurchase) return;
+    const response = await fetch("http://localhost:8787/api/shop/dev/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, purchaseId: pendingPurchase }),
+    }).catch(() => undefined);
+    const data = response && (await response.json());
+    setNotice(
+      data?.ok
+        ? "Pagamento de desenvolvimento aprovado. Rubis creditados pelo servidor."
+        : (data?.message ?? "Aprovação indisponível."),
+    );
+    if (data?.ok) {
+      setPendingPurchase(null);
+      setCheckoutState("success");
+    }
+  };
+  return (
+    <section className="premium-panel premium-shop-shell">
+      <header className="premium-shop-header">
+        <div>
+          <span className="eyebrow">CONTEÚDO PREMIUM DO PROJECT ONE</span>
+          <h3>
+            <Gem size={20} /> RUBIS SHOP
+          </h3>
+        </div>
+        <b>
+          <Gem size={15} /> {snapshot?.player.wallet.rubies ?? 0} Rubis
+        </b>
+      </header>
+      <div className="premium-shop-layout">
+        <nav className="premium-sidebar" aria-label="Categorias premium">
+          <button
+            className={tab === "rubies" ? "active" : ""}
+            onClick={() => setTab("rubies")}
+          >
+            <Gem /> RUBIS
+          </button>
+          <button
+            className={tab === "vip" ? "active" : ""}
+            onClick={() => setTab("vip")}
+          >
+            <Crown /> VIP
+          </button>
+          <button
+            className={tab === "pass" ? "active" : ""}
+            onClick={() => setTab("pass")}
+          >
+            <PackageOpen /> PASSE
+          </button>
+          <button
+            className={tab === "founder" ? "active" : ""}
+            onClick={() => setTab("founder")}
+          >
+            <Crown /> FUNDADOR
+          </button>
+        </nav>
+        <div className="premium-content">
+          {tab === "rubies" && (
+            <div className="shop-premium-grid">
+              <section className="ruby-hero">
+                <div className="ruby-hero-gem" aria-hidden="true">
+                  <Gem />
+                </div>
+                <div>
+                  <span className="eyebrow">RUBIS PROJECT ONE</span>
+                  <h2>Fortaleça sua jornada.</h2>
+                  <p>
+                    A moeda premium do Project One para conteúdos e benefícios
+                    especiais.
+                  </p>
+                </div>
+                <b>
+                  <Gem size={18} /> {snapshot?.player.wallet.rubies ?? 0} RUBIS
+                </b>
+              </section>
+              <div
+                className={`ruby-package-grid ${packages.length === 1 ? "single" : ""}`}
+              >
+                {packages.map((entry) => (
+                  <article className="ruby-package-card" key={entry.id}>
+                    <div className="item-icon-frame ruby-package-icon">
+                      <Gem />
+                    </div>
+                    <h3>{entry.rubies} RUBIS</h3>
+                    <span>{entry.displayName}</span>
+                    <button
+                      onClick={() => {
+                        setCheckoutPackage(entry);
+                        setCheckoutState("confirm");
+                        setNotice("");
+                      }}
+                    >
+                      COMPRAR {entry.rubies} RUBIS
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+          {tab === "vip" && (
+            <div className="shop-vip-card">
+              <div className="item-icon-frame vip-emblem">
+                <Crown />
+              </div>
+              <h3>VIP PROJECT ONE</h3>
+              <p className="vip-subtitle">
+                Benefícios especiais para sua jornada.
+              </p>
+              <div className="vip-benefits">
+                <span>+20% XP</span>
+                <span>+10% DROP</span>
+                <span>TÍTULO VIP</span>
+                <span>CHAT VIP</span>
+              </div>
+              <b>{snapshot?.player.vip.active ? "VIP ATIVO" : "20 RUBIS"}</b>
+              <button
+                disabled={snapshot?.player.vip.active}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Ativar VIP permanente por 20 Rubis? Saldo atual: ${snapshot?.player.wallet.rubies ?? 0}.`,
+                    )
+                  )
+                    onIntent({ type: "purchaseVip" });
+                }}
+              >
+                {snapshot?.player.vip.active
+                  ? "VIP ATIVO"
+                  : "ATIVAR VIP — 20 RUBIS"}
+              </button>
+            </div>
+          )}
+          {tab === "pass" && (
+            <div className="premium-coming">
+              <Crown />
+              <h3>PASSE</h3>
+              <p>EM BREVE</p>
+            </div>
+          )}
+          {tab === "founder" && (
+            <div className="premium-coming">
+              <Gem />
+              <h3>PACOTES DE FUNDADOR</h3>
+              <p>EM BREVE</p>
+            </div>
+          )}
+          {notice && <p className="shop-notice">{notice}</p>}
+        </div>
+      </div>
+      {checkoutPackage && (
+        <div
+          className="premium-checkout-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirmar compra de Rubis"
+        >
+          <section className="premium-checkout">
+            <button
+              className="icon-close"
+              aria-label="Fechar checkout"
+              onClick={() => {
+                setCheckoutPackage(null);
+                setCheckoutState("confirm");
+                setNotice("");
+              }}
+            >
+              <X />
+            </button>
+            {checkoutState === "success" ? (
+              <>
+                <div className="checkout-gem">
+                  <Gem />
+                </div>
+                <span className="eyebrow">PAGAMENTO APROVADO</span>
+                <h2>+{checkoutPackage.rubies} RUBIS</h2>
+                <p>Rubis creditados pelo servidor.</p>
+                <button
+                  className="checkout-primary"
+                  onClick={() => {
+                    setCheckoutPackage(null);
+                    setCheckoutState("confirm");
+                    setNotice("");
+                  }}
+                >
+                  CONCLUIR
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="eyebrow">CONFIRMAR COMPRA</span>
+                <div className="checkout-gem">
+                  <Gem />
+                </div>
+                <h2>{checkoutPackage.rubies} RUBIS</h2>
+                <b>{checkoutPackage.displayName}</b>
+                <p>Conteúdo premium do Project One.</p>
+                {development && (
+                  <small className="dev-label">
+                    AMBIENTE DE DESENVOLVIMENTO
+                  </small>
+                )}
+                {checkoutState === "confirm" ? (
+                  <div className="checkout-actions">
+                    <button
+                      onClick={() => {
+                        setCheckoutPackage(null);
+                        setNotice("");
+                      }}
+                    >
+                      CANCELAR
+                    </button>
+                    <button
+                      className="checkout-primary"
+                      onClick={() => void buyRubies(checkoutPackage.id)}
+                    >
+                      CONTINUAR
+                    </button>
+                  </div>
+                ) : (
+                  <div className="checkout-pending">
+                    <strong>AGUARDANDO PAGAMENTO</strong>
+                    <span>Compra criada com segurança no servidor.</span>
+                    {development && (
+                      <button
+                        className="checkout-primary"
+                        disabled={!pendingPurchase}
+                        onClick={() => void approveDevPurchase()}
+                      >
+                        APROVAR PAGAMENTO DEV
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </section>
   );
 }

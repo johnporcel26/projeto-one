@@ -1,9 +1,24 @@
 {
   "type": "map", "version": "1.10", "tiledversion": "1.10", "orientation": "orthogonal", "width": 1600, "height": 1080,
   "layers": [
-    { "id": 1, "name": "COLLISION", "type": "objectgroup", "objects": [{ "id": 1, "name": "sand_bounds", "type": "WALKABLE", "x": 150, "y": 130, "width": 1300, "height": 840 }, { "id": 2, "name": "rock_1", "type": "COLLISION", "ellipse": true, "x": 588, "y": 413, "width": 84, "height": 84 }, { "id": 3, "name": "rock_2", "type": "COLLISION", "ellipse": true, "x": 924, "y": 584, "width": 72, "height": 72 }, { "id": 4, "name": "rock_3", "type": "COLLISION", "ellipse": true, "x": 756, "y": 756, "width": 68, "height": 68 }] },
-    { "id": 2, "name": "WATER", "type": "objectgroup", "objects": [{ "id": 10, "name": "west_sea", "type": "WATER", "x": 150, "y": 130, "width": 110, "height": 840 }, { "id": 11, "name": "east_sea", "type": "WATER", "x": 1340, "y": 130, "width": 110, "height": 840 }, { "id": 12, "name": "north_sea", "type": "WATER", "x": 150, "y": 130, "width": 1300, "height": 105 }] },
+    { "id": 1, "name": "COLLISION", "type": "objectgroup", "objects": [
+      { "id": 1, "name": "sand_bounds", "type": "WALKABLE", "x": 150, "y": 130, "width": 1300, "height": 840 },
+      { "id": 2, "name": "rock_1", "type": "COLLISION", "ellipse": true, "x": 588, "y": 413, "width": 84, "height": 84 },
+      { "id": 3, "name": "rock_2", "type": "COLLISION", "ellipse": true, "x": 924, "y": 584, "width": 72, "height": 72 },
+      { "id": 4, "name": "rock_3", "type": "COLLISION", "ellipse": true, "x": 756, "y": 756, "width": 68, "height": 68 }
+    ] },
+    { "id": 2, "name": "WATER", "type": "objectgroup", "objects": [
+      { "id": 10, "name": "west_sea", "type": "WATER", "x": 150, "y": 130, "width": 110, "height": 840 },
+      { "id": 11, "name": "east_sea", "type": "WATER", "x": 1340, "y": 130, "width": 110, "height": 840 },
+      { "id": 12, "name": "north_sea", "type": "WATER", "x": 150, "y": 130, "width": 1300, "height": 105 }
+    ] },
     { "id": 3, "name": "PLAYER_SPAWN", "type": "objectgroup", "objects": [{ "id": 20, "name": "ted", "type": "PLAYER_SPAWN", "x": 620, "y": 600 }] },
-    { "id": 4, "name": "ENEMY_SPAWN", "type": "objectgroup", "objects": [{ "id": 30, "name": "buffalo_1", "type": "ENEMY_SPAWN", "x": 880, "y": 520 }, { "id": 31, "name": "buffalo_2", "type": "ENEMY_SPAWN", "x": 470, "y": 780 }, { "id": 32, "name": "buffalo_3", "type": "ENEMY_SPAWN", "x": 1120, "y": 760 }, { "id": 33, "name": "buffalo_4", "type": "ENEMY_SPAWN", "x": 520, "y": 380 }] }
+    { "id": 4, "name": "ENEMY_SPAWN", "type": "objectgroup", "objects": [
+      { "id": 30, "name": "buffalo_1", "type": "ENEMY_SPAWN", "x": 300, "y": 270 }, { "id": 31, "name": "buffalo_2", "type": "ENEMY_SPAWN", "x": 600, "y": 270 },
+      { "id": 32, "name": "buffalo_3", "type": "ENEMY_SPAWN", "x": 900, "y": 270 }, { "id": 33, "name": "buffalo_4", "type": "ENEMY_SPAWN", "x": 1200, "y": 270 },
+      { "id": 34, "name": "buffalo_5", "type": "ENEMY_SPAWN", "x": 300, "y": 600 }, { "id": 35, "name": "buffalo_6", "type": "ENEMY_SPAWN", "x": 1200, "y": 600 },
+      { "id": 36, "name": "buffalo_7", "type": "ENEMY_SPAWN", "x": 300, "y": 920 }, { "id": 37, "name": "buffalo_8", "type": "ENEMY_SPAWN", "x": 600, "y": 920 },
+      { "id": 38, "name": "buffalo_9", "type": "ENEMY_SPAWN", "x": 900, "y": 920 }, { "id": 39, "name": "buffalo_10", "type": "ENEMY_SPAWN", "x": 1200, "y": 920 }
+    ] }
   ]
 }

@@ -11,6 +11,12 @@
       { "id": 7, "name": "tree_6", "type": "COLLISION", "ellipse": true, "x": 1315, "y": 685, "width": 150, "height": 150 }
     ]},
     { "id": 2, "name": "PLAYER_SPAWN", "type": "objectgroup", "objects": [{ "id": 10, "name": "ted", "type": "PLAYER_SPAWN", "x": 620, "y": 600 }] },
-    { "id": 3, "name": "ENEMY_SPAWN", "type": "objectgroup", "objects": [{ "id": 20, "name": "alvida_1", "type": "ENEMY_SPAWN", "x": 880, "y": 520 }, { "id": 21, "name": "alvida_2", "type": "ENEMY_SPAWN", "x": 450, "y": 850 }, { "id": 22, "name": "alvida_3", "type": "ENEMY_SPAWN", "x": 1120, "y": 810 }, { "id": 23, "name": "alvida_4", "type": "ENEMY_SPAWN", "x": 520, "y": 420 }, { "id": 24, "name": "alvida_5", "type": "ENEMY_SPAWN", "x": 1320, "y": 480 }, { "id": 25, "name": "alvida_6", "type": "ENEMY_SPAWN", "x": 1020, "y": 300 }] }
+    { "id": 3, "name": "ENEMY_SPAWN", "type": "objectgroup", "objects": [
+      { "id": 20, "name": "alvida_1", "type": "ENEMY_SPAWN", "x": 200, "y": 120 }, { "id": 21, "name": "alvida_2", "type": "ENEMY_SPAWN", "x": 600, "y": 120 },
+      { "id": 22, "name": "alvida_3", "type": "ENEMY_SPAWN", "x": 950, "y": 120 }, { "id": 23, "name": "alvida_4", "type": "ENEMY_SPAWN", "x": 1450, "y": 120 },
+      { "id": 24, "name": "alvida_5", "type": "ENEMY_SPAWN", "x": 150, "y": 500 }, { "id": 25, "name": "alvida_6", "type": "ENEMY_SPAWN", "x": 1050, "y": 500 },
+      { "id": 26, "name": "alvida_7", "type": "ENEMY_SPAWN", "x": 1450, "y": 500 }, { "id": 27, "name": "alvida_8", "type": "ENEMY_SPAWN", "x": 450, "y": 950 },
+      { "id": 28, "name": "alvida_9", "type": "ENEMY_SPAWN", "x": 740, "y": 950 }, { "id": 29, "name": "alvida_10", "type": "ENEMY_SPAWN", "x": 1100, "y": 950 }
+    ]}
   ]
 }

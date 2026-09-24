@@ -12,7 +12,13 @@
       { "name": "ice_rock_3", "x": 350, "y": 760, "width": 56, "height": 38 }
     ] },
     { "name": "PLAYER_SPAWN", "type": "objectgroup", "objects": [{ "name": "ice_entry", "x": 800, "y": 920 }] },
-    { "name": "ENEMY_SPAWN", "type": "objectgroup", "objects": [{ "name": "wapol_peak", "x": 800, "y": 430 }] },
+    { "name": "ENEMY_SPAWN", "type": "objectgroup", "objects": [
+      { "name": "wapol_northwest", "x": 200, "y": 200 }, { "name": "wapol_north", "x": 550, "y": 200 },
+      { "name": "wapol_peak", "x": 800, "y": 430 }, { "name": "wapol_northeast", "x": 1350, "y": 200 },
+      { "name": "wapol_west", "x": 200, "y": 550 }, { "name": "wapol_east", "x": 1300, "y": 550 },
+      { "name": "wapol_southwest", "x": 200, "y": 950 }, { "name": "wapol_southwest_inner", "x": 500, "y": 1000 },
+      { "name": "wapol_southeast_inner", "x": 1100, "y": 1000 }, { "name": "wapol_southeast", "x": 1450, "y": 950 }
+    ] },
     { "name": "DECORATION", "type": "objectgroup", "objects": [] }
   ]
 }

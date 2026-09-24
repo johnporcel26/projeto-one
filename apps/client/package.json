@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
     "@onepiece/shared": "*",
     "@vitejs/plugin-react": "^4.3.4",
     "lucide-react": "^1.47.0",

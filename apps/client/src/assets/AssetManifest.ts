@@ -11,6 +11,8 @@ export const Asset = {
   wapolAttack: (frame: number) => `${root}enemies/wapol/attack/down/${frame}.png`,
   tree: (id: string) => `${root}Mapas/Floresta/arvores/${id}.png`,
   item: (name: string) => `${root}Itens/${name}/1.png`, healingCounter: `${root}Itens/balcao/9de2a706-fb1a-44bf-bd89-986481a132fe.png`, fruit: (name: string) => `${root}Akumanomi/${name}/1.png`,
-  bubbles: (frame: number) => `${root}personagem/Subeskill/Bolhas/${frame}.png`, shield: (frame: number) => `${root}personagem/Subeskill/Defense/${frame}.png`, guroExplosion: (frame: number) => `${root}effects/guro/explosion_${String(frame).padStart(2, "0")}.png`
-  ,oldDrunk: (state: "idle" | "drink" | "sway" | "interact" | "heal", frame: number) => `${root}npcs/old_drunk_healer/${state}/${state}_${String(frame).padStart(2, "0")}.png`, oldDrunkSeated: (state: "idle" | "drink" | "sway" | "interact" | "heal", frame: number) => `${root}npcs/old_drunk_healer/seated/${state}_${String(frame).padStart(2, "0")}.png`, oldDrunkFx: (frame: number) => `${root}npcs/old_drunk_healer/fx/heal_fx_${String(frame).padStart(2, "0")}.png`
+  fruitSkill: (fruit: "sube" | "guro" | "baku", skill: number, frame: string | number) => `${root}effects/fruits/${fruit}/h${skill}-${frame}.png`,
+  subeDefenseFx: (frame: number) => `${root}effects/fruits/sube/h2-${frame}.png`,
+  subeEvasionFx: (frame: number) => `${root}effects/fruits/sube/h3-${frame}.png`,
+  oldDrunk: (state: "idle" | "drink" | "sway" | "interact" | "heal", frame: number) => `${root}npcs/old_drunk_healer/${state}/${state}_${String(frame).padStart(2, "0")}.png`, oldDrunkSeated: (state: "idle" | "drink" | "sway" | "interact" | "heal", frame: number) => `${root}npcs/old_drunk_healer/seated/${state}_${String(frame).padStart(2, "0")}.png`, oldDrunkFx: (frame: number) => `${root}npcs/old_drunk_healer/fx/heal_fx_${String(frame).padStart(2, "0")}.png`
 } as const;
