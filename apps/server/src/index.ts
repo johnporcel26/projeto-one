@@ -29,7 +29,7 @@ const accounts = new AuthRepository(process.env.PROJECT_ONE_DB_PATH ?? "data/alp
 let marketDirty = false;
 const sessions = new SessionManager(() => {
   marketDirty = true;
-});
+}, (playerId) => accounts.loadPlayerById(playerId));
 sessions.hydrateMarket(accounts.loadMarket());
 let persistedLedgerLength = 0;
 if (process.env.DISABLE_CONTENT_ADMIN !== "true")
@@ -40,9 +40,31 @@ const socketSessions = new Map<
   WebSocket,
   { accountId: string; sessionId: string; saved: string; dirty: boolean }
 >();
+/** Saves then invalidates an account's live runtime state before its socket can issue another intent. */
+const invalidateLiveSession = (
+  accountId: string,
+  state: "REPLACED" | "LOGGED_OUT",
+  message: string,
+): void => {
+  const socket = accountSockets.get(accountId);
+  const entry = socket ? socketSessions.get(socket) : undefined;
+  if (entry) {
+    entry.dirty = true;
+    saveDirtyState(`session:${state.toLowerCase()}`, true);
+  }
+  const oldSessionId = sessions.replaceActiveSession(accountId);
+  if (socket?.readyState === WebSocket.OPEN && state === "REPLACED")
+    socket.send(JSON.stringify({ type: "sessionReplaced", message } satisfies ServerEvent));
+  if (oldSessionId) sessions.destroySession(oldSessionId, state);
+  if (socket) {
+    accountSockets.delete(accountId);
+    socket.close(state === "REPLACED" ? 4001 : 1000, message);
+  }
+};
 const saveDirtyState = (reason: string, force = false): void => {
   const playerStates = new Map<string, ReturnType<GameSession["persistentState"]>>();
   for (const [socket, entry] of socketSessions) {
+    if (!sessions.isActive(entry.sessionId, entry.accountId)) continue;
     const session = sessions.getSession(entry.sessionId);
     if (!session) continue;
     const state = session.persistentState();
@@ -54,14 +76,18 @@ const saveDirtyState = (reason: string, force = false): void => {
   }
   if (!playerStates.size && !marketDirty && !force) return;
   try {
+    for (const offline of sessions.pendingOfflinePlayerStates())
+      playerStates.set(offline.accountId, offline.state);
     accounts.saveRuntimeState(
       [...playerStates].map(([accountId, state]) => ({ accountId, state })),
       sessions.marketState(),
       sessions.wallets.ledger.slice(persistedLedgerLength),
+      sessions.pendingMarketNotifications(),
     );
     persistedLedgerLength = sessions.wallets.ledger.length;
     for (const entry of socketSessions.values()) entry.dirty = false;
     marketDirty = false;
+    sessions.markPendingMarketPersistenceSaved();
     if (process.env.NODE_ENV !== "production")
       console.info(`[Persistence] Saved ${playerStates.size} player(s): ${reason}`);
   } catch (error) {
@@ -75,6 +101,47 @@ const isCriticalIntent = (intent: ClientIntent): boolean =>
     "buyAuctionListing", "cancelAuctionListing", "createAuctionOffer", "acceptAuctionOffer",
     "rejectAuctionOffer", "purchaseVip",
   ].includes(intent.type);
+const validId = (value: unknown, max = 96): value is string =>
+  typeof value === "string" && value.length > 0 && value.length <= max;
+const validQuantity = (value: unknown, max = 999): boolean =>
+  Number.isInteger(value) && Number(value) > 0 && Number(value) <= max;
+const validAutoHuntSettings = (value: unknown): boolean => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const settings = value as Record<string, unknown>;
+  const allowed = new Set(["autoUseConsumables", "hpPotionEnabled", "hpThresholdPercent", "manaPotionEnabled", "manaThresholdPercent", "potionPreference", "utilityMode", "basicAttackEnabled", "targetPriority", "skillPolicies"]);
+  if (Object.keys(settings).some((key) => !allowed.has(key))) return false;
+  for (const key of ["autoUseConsumables", "hpPotionEnabled", "manaPotionEnabled", "basicAttackEnabled"])
+    if (settings[key] !== undefined && typeof settings[key] !== "boolean") return false;
+  for (const key of ["hpThresholdPercent", "manaThresholdPercent"])
+    if (settings[key] !== undefined && (!Number.isInteger(settings[key]) || Number(settings[key]) < 1 || Number(settings[key]) > 99)) return false;
+  if (settings.potionPreference !== undefined && !["SMALL_FIRST", "LARGE_FIRST", "SMART"].includes(String(settings.potionPreference))) return false;
+  if (settings.utilityMode !== undefined && !["AUTO", "SLOT_1", "SLOT_2"].includes(String(settings.utilityMode))) return false;
+  if (settings.targetPriority !== undefined && !["NEAREST", "LOWEST_HP", "HIGHEST_HP"].includes(String(settings.targetPriority))) return false;
+  if (settings.skillPolicies !== undefined && (!settings.skillPolicies || typeof settings.skillPolicies !== "object" || Array.isArray(settings.skillPolicies) || Object.keys(settings.skillPolicies as object).length > 8)) return false;
+  return true;
+};
+/** Runtime payload firewall: TypeScript clients are not a security boundary. */
+const isValidIntent = (value: unknown): value is ClientIntent => {
+  if (!value || typeof value !== "object" || !validId((value as { type?: unknown }).type, 40)) return false;
+  const intent = value as Record<string, unknown>;
+  if (intent.type === "move") return Number.isFinite(intent.x) && Number.isFinite(intent.y) && Math.abs(Number(intent.x)) <= 1 && Math.abs(Number(intent.y)) <= 1;
+  if (["attack", "toggleAutoHunt", "unequipFruit", "leaveHunt", "purchaseVip", "resetHuntAnalyzer", "requestRespawn"].includes(intent.type as string)) return true;
+  if (intent.type === "useSkill") return validId(intent.skillId);
+  if (["useItem", "equipFruit", "depositItem", "withdrawItem", "buyItem"].includes(intent.type as string)) return validId(intent.itemId) && (intent.quantity === undefined || validQuantity(intent.quantity));
+  if (intent.type === "setItemLock") return validId(intent.itemId) && typeof intent.locked === "boolean";
+  if (intent.type === "setUtilitySlot") return (intent.slot === 0 || intent.slot === 1) && validId(intent.itemId);
+  if (intent.type === "clearUtilitySlot") return intent.slot === 0 || intent.slot === 1;
+  if (intent.type === "enterHunt") return validId(intent.huntId);
+  if (intent.type === "sellItems" || intent.type === "sellAll") { const ids = intent.type === "sellItems" ? intent.itemIds : intent.excludedItemIds; return Array.isArray(ids) && ids.length <= 100 && ids.every((id) => validId(id)); }
+  if (intent.type === "updateAutoHuntSettings") return validAutoHuntSettings(intent.settings);
+  if (intent.type === "createAuctionListing") return validId(intent.itemId) && validQuantity(intent.quantity) && typeof intent.allowOffers === "boolean" && (intent.berriesPrice === undefined || validQuantity(intent.berriesPrice, 1_000_000_000)) && (intent.rubiesPrice === undefined || validQuantity(intent.rubiesPrice, 1_000_000_000));
+  if (intent.type === "buyAuctionListing") return validId(intent.listingId) && (intent.currency === "BERRIES" || intent.currency === "RUBIES");
+  if (intent.type === "cancelAuctionListing") return validId(intent.listingId);
+  if (intent.type === "createAuctionOffer") return validId(intent.listingId) && (intent.currency === "BERRIES" || intent.currency === "RUBIES") && validQuantity(intent.amount, 1_000_000_000);
+  if (intent.type === "acceptAuctionOffer" || intent.type === "rejectAuctionOffer") return validId(intent.listingId) && validId(intent.offerId);
+  if (intent.type === "interactWithNpc") return validId(intent.npcId);
+  return false;
+};
 const respond = (response: ServerResponse, status: number, body: unknown) => {
   response.writeHead(status, {
     "Content-Type": "application/json",
@@ -88,7 +155,10 @@ const readBody = async (
   request: IncomingMessage,
 ): Promise<Record<string, string>> => {
   let raw = "";
-  for await (const chunk of request) raw += chunk;
+  for await (const chunk of request) {
+    raw += chunk;
+    if (raw.length > 16_384) return {};
+  }
   try {
     return JSON.parse(raw) as Record<string, string>;
   } catch {
@@ -189,6 +259,12 @@ const server = createServer(async (request, response) => {
       input.identity ?? "",
       input.password ?? "",
     );
+    if (result.ok)
+      invalidateLiveSession(
+        result.session.accountId,
+        "REPLACED",
+        "Sua sessão foi aberta em outro dispositivo.",
+      );
     return respond(response, result.ok ? 200 : 401, result);
   }
   if (action === "validate") {
@@ -200,7 +276,9 @@ const server = createServer(async (request, response) => {
     );
   }
   if (action === "logout") {
-    saveDirtyState("logout", true);
+    const auth = accounts.validate(input.token);
+    if (auth)
+      invalidateLiveSession(auth.accountId, "LOGGED_OUT", "Sessão encerrada.");
     if (input.token) accounts.logout(input.token);
     return respond(response, 200, { ok: true });
   }
@@ -221,10 +299,16 @@ server.on("upgrade", (request, socket, head) => {
 wss.on(
   "connection",
   (socket, auth: NonNullable<ReturnType<AuthRepository["validate"]>>) => {
-    const previous = accountSockets.get(auth.accountId);
-    if (previous && previous !== socket)
-      previous.close(4001, "Nova sessão iniciada.");
-    const session = sessions.createSession(accounts.loadPlayer(auth.accountId));
+    invalidateLiveSession(
+      auth.accountId,
+      "REPLACED",
+      "Sua sessão foi aberta em outro dispositivo.",
+    );
+    const session = sessions.createSession(accounts.loadPlayer(auth.accountId), auth.accountId);
+    sessions.queuePersistedSales(
+      session.player.id,
+      accounts.consumeMarketNotifications(session.player.id),
+    );
     accountSockets.set(auth.accountId, socket);
     const entry = {
       accountId: auth.accountId,
@@ -245,7 +329,9 @@ wss.on(
     };
     socket.on("message", (raw) => {
       try {
-        const intent = JSON.parse(raw.toString()) as ClientIntent;
+        if (!sessions.isActive(entry.sessionId, entry.accountId)) return;
+        const intent = JSON.parse(raw.toString()) as unknown;
+        if (!isValidIntent(intent)) throw new Error("invalid intent");
         session.handle(intent);
         if (JSON.stringify(session.persistentState()) !== entry.saved)
           entry.dirty = true;
@@ -261,13 +347,15 @@ wss.on(
     socket.on("close", () => {
       const entry = socketSessions.get(socket);
       if (entry) {
-        entry.dirty = true;
-        saveDirtyState("disconnect", true);
+        if (sessions.isActive(entry.sessionId, entry.accountId)) {
+          entry.dirty = true;
+          saveDirtyState("disconnect", true);
+        }
         socketSessions.delete(socket);
       }
       if (accountSockets.get(auth.accountId) === socket)
         accountSockets.delete(auth.accountId);
-      sessions.destroySession(session.id);
+      if (sessions.getSession(session.id)) sessions.destroySession(session.id);
     });
     publish();
   },

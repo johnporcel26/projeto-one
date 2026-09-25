@@ -800,4 +800,6 @@ export type ClientIntent =
 export type ServerEvent =
   | { type: "snapshot"; payload: GameSnapshot }
   | { type: "log"; message: string }
-  | { type: "marketSale"; payload: MarketSaleNotification };
+  | { type: "marketSale"; payload: MarketSaleNotification }
+  /** Sent to the superseded client before its socket is closed. */
+  | { type: "sessionReplaced"; message: string };

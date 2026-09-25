@@ -10,6 +10,7 @@ export class GameSocket {
   onSnapshot?: (snapshot: GameSnapshot) => void;
   onLog?: (message: string) => void;
   onMarketSale?: (sale: MarketSaleNotification) => void;
+  onSessionReplaced?: (message: string) => void;
   private token?: string;
   private reconnect = true;
   connect(token: string): void {
@@ -25,6 +26,10 @@ export class GameSocket {
       if (event.type === "snapshot") this.onSnapshot?.(event.payload);
       if (event.type === "log") this.onLog?.(event.message);
       if (event.type === "marketSale") this.onMarketSale?.(event.payload);
+      if (event.type === "sessionReplaced") {
+        this.reconnect = false;
+        this.onSessionReplaced?.(event.message);
+      }
     };
     this.socket.onclose = () => {
       if (this.reconnect && this.token) {

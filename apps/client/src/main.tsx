@@ -49,6 +49,10 @@ function GameApp({
     socket.onLog = addLog;
     socket.onMarketSale = (sale) =>
       window.dispatchEvent(new CustomEvent("market-sale", { detail: sale }));
+    socket.onSessionReplaced = (message) => {
+      addLog(message);
+      onLogout();
+    };
     socket.connect(token);
     const listener = (event: Event) =>
       socket.intent((event as CustomEvent).detail);
@@ -57,7 +61,7 @@ function GameApp({
       window.removeEventListener("game-intent", listener);
       socket.disconnect();
     };
-  }, [socket, token, setSnapshot, addLog]);
+  }, [socket, token, setSnapshot, addLog, onLogout]);
   return (
     <main className="game-app">
       <GameCanvas />

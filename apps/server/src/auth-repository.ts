@@ -1,4 +1,5 @@
 import {
+  createHash,
   randomBytes,
   scrypt as scryptCallback,
   timingSafeEqual,
@@ -12,6 +13,7 @@ import {
   itemDefinitions,
   type AuctionListingSnapshot,
   type AuctionOfferSnapshot,
+  type MarketSaleNotification,
 } from "@onepiece/shared";
 import type { PersistedPlayer } from "./domain.js";
 import type { LedgerEntry } from "./economy.js";
@@ -26,6 +28,7 @@ export type Account = {
   updatedAt: number;
 };
 export type AuthSession = {
+  sessionId: string;
   token: string;
   accountId: string;
   username: string;
@@ -52,6 +55,11 @@ const usernameRule = /^[A-Za-z0-9_-]{3,20}$/;
 export type PersistedMarket = {
   listings: AuctionListingSnapshot[];
   offers: AuctionOfferSnapshot[];
+};
+export type PersistedMarketNotification = {
+  playerId: string;
+  sale: MarketSaleNotification;
+  createdAt: number;
 };
 
 export class AuthRepository {
@@ -150,13 +158,13 @@ export class AuthRepository {
     if (!token) return undefined;
     const row = this.db
       .prepare(
-        "SELECT s.token, s.account_id as accountId, a.username, s.expires_at as expiresAt FROM auth_sessions s JOIN accounts a ON a.id=s.account_id WHERE s.token=? AND s.expires_at>? ",
+        "SELECT s.session_id as sessionId, s.account_id as accountId, a.username, s.expires_at as expiresAt FROM auth_sessions s JOIN accounts a ON a.id=s.account_id WHERE s.token_hash=? AND s.expires_at>? AND s.state='ACTIVE'",
       )
-      .get(token, Date.now()) as AuthSession | undefined;
-    return row;
+      .get(hashToken(token), Date.now()) as Omit<AuthSession, "token"> | undefined;
+    return row ? { ...row, token } : undefined;
   }
   logout(token: string): void {
-    this.db.prepare("DELETE FROM auth_sessions WHERE token=?").run(token);
+    this.db.prepare("UPDATE auth_sessions SET state='LOGGED_OUT' WHERE token_hash=?").run(hashToken(token));
   }
   loadPlayer(accountId: string): PersistedPlayer | undefined {
     const row = this.db
@@ -171,17 +179,30 @@ export class AuthRepository {
     }
   }
   savePlayer(accountId: string, state: PersistedPlayer): void {
+    const sanitized = sanitizePlayer(state);
     this.db
       .prepare(
-        "INSERT INTO players (account_id,state_json,updated_at) VALUES (?,?,?) ON CONFLICT(account_id) DO UPDATE SET state_json=excluded.state_json,updated_at=excluded.updated_at",
+        "INSERT INTO players (account_id,player_id,state_json,updated_at) VALUES (?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET player_id=excluded.player_id,state_json=excluded.state_json,updated_at=excluded.updated_at",
       )
-      .run(accountId, JSON.stringify(sanitizePlayer(state)), Date.now());
+      .run(accountId, sanitized.id, JSON.stringify(sanitized), Date.now());
+  }
+  loadPlayerById(playerId: string): { accountId: string; state: PersistedPlayer } | undefined {
+    const row = this.db
+      .prepare("SELECT account_id as accountId,state_json FROM players WHERE player_id=?")
+      .get(playerId) as { accountId: string; state_json: string } | undefined;
+    if (!row) return undefined;
+    try {
+      return { accountId: row.accountId, state: sanitizePlayer(JSON.parse(row.state_json) as PersistedPlayer) };
+    } catch {
+      return undefined;
+    }
   }
   /** Atomically persists all durable state touched by an economy/market mutation. */
   saveRuntimeState(
     players: readonly { accountId: string; state: PersistedPlayer }[],
     market: PersistedMarket,
     ledger: readonly LedgerEntry[] = [],
+    notifications: readonly PersistedMarketNotification[] = [],
   ): void {
     this.db.exec("BEGIN IMMEDIATE");
     try {
@@ -202,6 +223,11 @@ export class AuthRepository {
       );
       for (const entry of ledger)
         addLedger.run(entry.playerId, entry.currency, entry.amount, entry.source, entry.referenceId ?? null, entry.timestamp);
+      const addNotification = this.db.prepare(
+        "INSERT INTO market_notifications (player_id,payload_json,created_at,delivered_at) VALUES (?,?,?,NULL)",
+      );
+      for (const notification of notifications)
+        addNotification.run(notification.playerId, JSON.stringify(notification.sale), notification.createdAt);
       this.db.exec("COMMIT");
     } catch (error) {
       try { this.db.exec("ROLLBACK"); } catch { /* transaction was not opened */ }
@@ -219,6 +245,29 @@ export class AuthRepository {
       listings: listings.filter(isValidListing).map((entry) => ({ ...entry, allowOffers: Boolean(entry.allowOffers) })),
       offers: offers.filter(isValidOffer).map((entry) => ({ ...entry })),
     };
+  }
+  consumeMarketNotifications(playerId: string): MarketSaleNotification[] {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const rows = this.db.prepare(
+        "SELECT id,payload_json FROM market_notifications WHERE player_id=? AND delivered_at IS NULL ORDER BY created_at ASC",
+      ).all(playerId) as { id: number; payload_json: string }[];
+      const deliveredAt = Date.now();
+      const mark = this.db.prepare("UPDATE market_notifications SET delivered_at=? WHERE id=?");
+      const sales: MarketSaleNotification[] = [];
+      for (const row of rows) {
+        try {
+          const sale = JSON.parse(row.payload_json) as MarketSaleNotification;
+          if (isValidSale(sale)) sales.push(sale);
+        } catch { /* malformed legacy notification is discarded */ }
+        mark.run(deliveredAt, row.id);
+      }
+      this.db.exec("COMMIT");
+      return sales;
+    } catch (error) {
+      try { this.db.exec("ROLLBACK"); } catch { /* transaction was not opened */ }
+      throw error;
+    }
   }
   createPurchase(
     accountId: string,
@@ -298,12 +347,14 @@ export class AuthRepository {
     const migrations: readonly [number, string][] = [
       [1, "CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE, email TEXT NOT NULL UNIQUE COLLATE NOCASE, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS players (account_id TEXT PRIMARY KEY REFERENCES accounts(id), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS auth_sessions (token TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id), expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS purchases (id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id), package_id TEXT NOT NULL, rubies INTEGER NOT NULL, price_cents INTEGER NOT NULL, currency TEXT NOT NULL, status TEXT NOT NULL, provider TEXT NOT NULL, provider_payment_id TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, paid_at INTEGER, updated_at INTEGER NOT NULL);"],
       [2, "CREATE TABLE IF NOT EXISTS market_listings (id TEXT PRIMARY KEY, seller_player_id TEXT NOT NULL, item_id TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity > 0), berries_price INTEGER, rubies_price INTEGER, allow_offers INTEGER NOT NULL CHECK(allow_offers IN (0,1)), status TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS idx_market_listings_status ON market_listings(status); CREATE INDEX IF NOT EXISTS idx_market_listings_seller ON market_listings(seller_player_id); CREATE TABLE IF NOT EXISTS market_offers (id TEXT PRIMARY KEY, listing_id TEXT NOT NULL REFERENCES market_listings(id), buyer_player_id TEXT NOT NULL, currency TEXT NOT NULL, amount INTEGER NOT NULL CHECK(amount > 0), status TEXT NOT NULL, created_at INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS idx_market_offers_listing ON market_offers(listing_id); CREATE INDEX IF NOT EXISTS idx_market_offers_buyer ON market_offers(buyer_player_id); CREATE TABLE IF NOT EXISTS economy_ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, player_id TEXT NOT NULL, currency TEXT NOT NULL, amount INTEGER NOT NULL, source TEXT NOT NULL, reference_id TEXT, created_at INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS idx_economy_ledger_player ON economy_ledger(player_id, created_at);"],
+      [3, "ALTER TABLE players ADD COLUMN player_id TEXT; DROP TABLE auth_sessions; CREATE TABLE auth_sessions (session_id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, account_id TEXT NOT NULL REFERENCES accounts(id), state TEXT NOT NULL CHECK(state IN ('ACTIVE','LOGGED_OUT','REPLACED','EXPIRED')), expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL); CREATE INDEX idx_auth_sessions_account ON auth_sessions(account_id,state); CREATE TABLE market_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, player_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at INTEGER NOT NULL, delivered_at INTEGER); CREATE INDEX idx_market_notifications_player ON market_notifications(player_id,delivered_at,created_at);"],
     ];
     for (const [version, sql] of migrations) {
       if (applied.has(version)) continue;
       this.db.exec("BEGIN IMMEDIATE");
       try {
         this.db.exec(sql);
+        if (version === 3) this.backfillPlayerIds();
         this.db.prepare("INSERT INTO schema_migrations (version,applied_at) VALUES (?,?)").run(version, Date.now());
         this.db.exec("COMMIT");
       } catch (error) {
@@ -326,21 +377,38 @@ export class AuthRepository {
   private createSession(account: Account): AuthSession {
     const now = Date.now();
     const token = randomBytes(32).toString("base64url");
+    const sessionId = randomBytes(18).toString("base64url");
     const expiresAt = now + 7 * 24 * 60 * 60 * 1000;
     this.db
-      .prepare("DELETE FROM auth_sessions WHERE account_id=? OR expires_at<?")
-      .run(account.id, now);
+      .prepare("UPDATE auth_sessions SET state='REPLACED' WHERE account_id=? AND state='ACTIVE'")
+      .run(account.id);
+    this.db.prepare("DELETE FROM auth_sessions WHERE expires_at<?").run(now);
     this.db
-      .prepare("INSERT INTO auth_sessions VALUES (?,?,?,?)")
-      .run(token, account.id, expiresAt, now);
+      .prepare("INSERT INTO auth_sessions (session_id,token_hash,account_id,state,expires_at,created_at) VALUES (?,?,?,'ACTIVE',?,?)")
+      .run(sessionId, hashToken(token), account.id, expiresAt, now);
     return {
+      sessionId,
       token,
       accountId: account.id,
       username: account.username,
       expiresAt,
     };
   }
+  private backfillPlayerIds(): void {
+    const rows = this.db.prepare("SELECT account_id,state_json FROM players WHERE player_id IS NULL").all() as { account_id: string; state_json: string }[];
+    const update = this.db.prepare("UPDATE players SET player_id=? WHERE account_id=?");
+    for (const row of rows) {
+      let playerId = `player_${row.account_id}`;
+      try {
+        const saved = JSON.parse(row.state_json) as { id?: unknown };
+        if (typeof saved.id === "string" && saved.id.length > 0) playerId = saved.id;
+      } catch { /* legacy malformed state is repaired by normal hydration */ }
+      update.run(playerId, row.account_id);
+    }
+    this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_players_player_id ON players(player_id)");
+  }
 }
+const hashToken = (token: string): string => createHash("sha256").update(token).digest("base64url");
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   const derived = (await scrypt(password, salt, 64)) as Buffer;
@@ -420,3 +488,8 @@ const isValidOffer = (entry: AuctionOfferSnapshot): boolean =>
   Number.isInteger(entry.amount) && entry.amount > 0 &&
   ["BERRIES", "RUBIES"].includes(entry.currency) &&
   ["ACTIVE", "ACCEPTED", "REJECTED", "CANCELLED"].includes(entry.status);
+const isValidSale = (entry: MarketSaleNotification): boolean =>
+  typeof entry.id === "string" && typeof entry.itemId === "string" &&
+  Number.isInteger(entry.quantity) && entry.quantity > 0 &&
+  ["BERRIES", "RUBIES"].includes(entry.currency) &&
+  Number.isInteger(entry.grossAmount) && Number.isInteger(entry.feeAmount) && Number.isInteger(entry.receivedAmount);
