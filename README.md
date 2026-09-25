@@ -14,7 +14,15 @@ npm install
 
 ## Desenvolvimento
 
-Em terminais separados:
+Inicie todo o ambiente com um único comando:
+
+```bash
+npm run dev:all
+```
+
+No Windows, também é possível dar duplo clique em `START_PROJECT_ONE.bat` na raiz do projeto. O lançador descobre a própria pasta, portanto funciona após `git clone` sem editar caminhos.
+
+Para iniciar serviços individualmente:
 
 ```bash
 npm run dev -w @onepiece/server
@@ -22,11 +30,21 @@ npm run dev -w @onepiece/client
 npm run dev -w @onepiece/admin
 ```
 
-Ou, para servidor e cliente juntos:
+O atalho anterior de servidor e cliente continua disponível:
 
 ```bash
 npm run dev
 ```
+
+### Teste LAN (dois computadores na mesma rede)
+
+Para o primeiro teste multiplayer local, execute `START_PROJECT_ONE_LAN.bat` no Windows ou:
+
+```bash
+npm run dev:lan
+```
+
+O terminal mostra os endereços `http://<IP_LOCAL>:5173` que o segundo computador pode abrir. Apenas Cliente (`5173`) e Servidor (`8787`) entram em modo LAN; Content Admin e sua API permanecem locais. Consulte [o guia de teste LAN](docs/LAN_TESTING.md) para Firewall privado e diagnóstico.
 
 Portas atuais:
 

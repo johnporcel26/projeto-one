@@ -4,6 +4,7 @@ import type {
   MarketSaleNotification,
   ServerEvent,
 } from "@onepiece/shared";
+import { serverWebSocketUrl } from "./server-url";
 export class GameSocket {
   private socket?: WebSocket;
   private retry?: number;
@@ -18,7 +19,7 @@ export class GameSocket {
     this.reconnect = true;
     window.clearTimeout(this.retry);
     this.socket = new WebSocket(
-      `ws://localhost:8787?token=${encodeURIComponent(token)}`,
+      `${serverWebSocketUrl()}?token=${encodeURIComponent(token)}`,
     );
     this.socket.onopen = () => this.onLog?.("Servidor conectado.");
     this.socket.onmessage = (message) => {

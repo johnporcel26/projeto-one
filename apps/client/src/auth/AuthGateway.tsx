@@ -1,11 +1,12 @@
 import { Eye, EyeOff, Volume2, VolumeX } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import "./auth-gateway.css";
+import { serverApiUrl } from "../network/server-url";
 const logoUrl = "/intro/project-one-logo.png";
 const backgroundUrl = "/intro/project-one-background.png";
 type Phase = "LANDING" | "LOGIN" | "REGISTER" | "AUTHENTICATING" | "LOADING_GAME";
 type AuthResult = { ok: boolean; message?: string; session?: { token: string; username: string } };
-const api = async (path: string, data: Record<string, string>): Promise<AuthResult> => { try { const response = await fetch(`http://localhost:8787/api/auth/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); return await response.json() as AuthResult; } catch { return { ok: false, message: "Servidor indisponível." }; } };
+const api = async (path: string, data: Record<string, string>): Promise<AuthResult> => { try { const response = await fetch(serverApiUrl(`/api/auth/${path}`), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); return await response.json() as AuthResult; } catch { return { ok: false, message: "Servidor indisponível." }; } };
 export function AuthGateway({ onAuthenticated }: { onAuthenticated: (token: string) => void }): JSX.Element {
   const [phase, setPhase] = useState<Phase>("LANDING"), [muted, setMuted] = useState(() => localStorage.getItem("project-one-muted") === "true"), [message, setMessage] = useState(""), [showPassword, setShowPassword] = useState(false);
   const audio = useRef<HTMLAudioElement>(); if (!audio.current) { audio.current = new Audio("/songs/0923.opus"); audio.current.loop = true; audio.current.volume = .28; }

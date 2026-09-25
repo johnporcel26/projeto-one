@@ -5,6 +5,8 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev -w @onepiece/server\" \"npm run dev -w @onepiece/client\"",
+    "dev:all": "concurrently --kill-others --kill-others-on-fail --kill-timeout 5000 --names SERVER,CLIENT,ADMIN --prefix \"[{name}]\" --prefix-colors cyan,magenta,yellow \"npm run dev -w @onepiece/server\" \"npm run dev -w @onepiece/client\" \"npm run dev -w @onepiece/admin\"",
+    "dev:lan": "node scripts/dev-lan.mjs",
     "build": "npm run build -w @onepiece/shared && npm run build -w @onepiece/server && npm run build -w @onepiece/client",
     "test": "npm run test -w @onepiece/server",
     "backup": "node scripts/backup-runtime.mjs"

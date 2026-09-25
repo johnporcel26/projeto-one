@@ -3,6 +3,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
+import { networkInterfaces } from "node:os";
 import { WebSocketServer, WebSocket } from "ws";
 import {
   rubyPackages,
@@ -18,6 +19,7 @@ import { paymentProvider } from "./payments.js";
 import type { GameSession } from "./GameSession.js";
 
 const content = new ContentRepository();
+const lanMode = process.env.PROJECT_ONE_LAN === "true";
 const reloadContentRuntime = async (): Promise<void> => {
   applyContentRuntime(await content.read());
   console.info(
@@ -142,10 +144,28 @@ const isValidIntent = (value: unknown): value is ClientIntent => {
   if (intent.type === "interactWithNpc") return validId(intent.npcId);
   return false;
 };
+const isPrivateLanIpv4 = (host: string): boolean => {
+  const octets = host.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return false;
+  return octets[0] === 10
+    || (octets[0] === 192 && octets[1] === 168)
+    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31);
+};
+/** Only the local Vite origin, or a private-LAN Vite origin while explicitly enabled, can read API responses. */
+const allowedClientOrigin = (origin: string | undefined): string | undefined => {
+  if (!origin) return undefined;
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "http:" || url.port !== "5173") return undefined;
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]") return origin;
+    return lanMode && isPrivateLanIpv4(url.hostname) ? origin : undefined;
+  } catch {
+    return undefined;
+  }
+};
 const respond = (response: ServerResponse, status: number, body: unknown) => {
   response.writeHead(status, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "http://localhost:5173",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   });
@@ -178,6 +198,11 @@ const limited = (request: IncomingMessage, action: string): boolean => {
   return entry.attempts > 8;
 };
 const server = createServer(async (request, response) => {
+  const origin = allowedClientOrigin(request.headers.origin);
+  if (origin) {
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Vary", "Origin");
+  }
   if (request.method === "OPTIONS") return respond(response, 204, {});
   if (request.method !== "POST" || !request.url?.startsWith("/api/"))
     return respond(response, 404, { ok: false, message: "Não encontrado." });
@@ -285,7 +310,15 @@ const server = createServer(async (request, response) => {
   return respond(response, 404, { ok: false, message: "Não encontrado." });
 });
 const wss = new WebSocketServer({ noServer: true });
+server.on("error", (error) =>
+  console.error("[Server] HTTP listener error; process remains observable.", error),
+);
+wss.on("error", (error) =>
+  console.error("[Server] WebSocket listener error; rejecting only the affected operation.", error),
+);
 server.on("upgrade", (request, socket, head) => {
+  if (request.headers.origin && !allowedClientOrigin(request.headers.origin))
+    return socket.destroy();
   const token = new URL(
     request.url ?? "/",
     "http://localhost",
@@ -344,6 +377,9 @@ wss.on(
       }
       publish();
     });
+    socket.on("error", (error) =>
+      console.warn(`[Server] WebSocket error for session ${entry.sessionId}; closing only that socket.`, error.message),
+    );
     socket.on("close", () => {
       const entry = socketSessions.get(socket);
       if (entry) {
@@ -412,9 +448,23 @@ const gameTick = setInterval(() => {
 }, 300);
 const autosave = setInterval(() => saveDirtyState("autosave"), 30_000);
 const port = Number(process.env.PORT ?? 8787);
-server.listen(port, () =>
-  console.log(`Authoritative authenticated game server listening on :${port}`),
-);
+const host = lanMode ? "0.0.0.0" : "127.0.0.1";
+const lanAddresses = (): string[] => Object.values(networkInterfaces())
+  .flat()
+  .filter((network): network is NonNullable<typeof network> => Boolean(network && network.family === "IPv4" && !network.internal && isPrivateLanIpv4(network.address)))
+  .map((network) => network.address);
+server.listen(port, host, () => {
+  console.log(`Authoritative authenticated game server listening on ${host}:${port}`);
+  if (lanMode) {
+    console.log("PROJECT ONE — LAN TEST");
+    console.log("CLIENT LOCAL: http://localhost:5173");
+    for (const address of lanAddresses()) {
+      console.log(`CLIENT LAN: http://${address}:5173`);
+      console.log(`SERVER LAN: ws://${address}:${port}`);
+    }
+    console.log("ADMIN: http://127.0.0.1:5174 (LOCAL ONLY)");
+  }
+});
 
 let shuttingDown = false;
 const shutdown = (signal: "SIGINT" | "SIGTERM") => {

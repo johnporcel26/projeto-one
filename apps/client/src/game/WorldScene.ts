@@ -62,6 +62,8 @@ export class WorldScene extends Phaser.Scene {
   private subeEvasionFx?: Phaser.GameObjects.Image;
   private collisionDebug?: Phaser.GameObjects.Graphics;
   private readonly displayedFeedback = new Set<string>();
+  private readonly queuedTextures = new Set<string>();
+  private forestPropsCreated = false;
   private area: GameSnapshot["area"] = "forest_alvida";
 
   constructor() {
@@ -69,106 +71,23 @@ export class WorldScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image("ground", Asset.forestGround);
+    this.installDevelopmentLoaderLogging();
+    // A new player starts on the ship. Loading every hunt, enemy and fruit frame
+    // here decoded more than 1 GB of textures before the mobile scene could render.
+    this.load.image("ship_1", Asset.shipFrames[0]);
+    this.load.image("ted_idle_1", Asset.ted("idle", 1));
     this.load.image("healing_counter", Asset.healingCounter);
-    (["sube", "guro", "baku"] as const).forEach((fruit) =>
-      [1, 2, 3].forEach((skill) => {
-        const count = fruit === "baku" && skill === 2 ? 6 : 5;
-        for (let frame = 1; frame <= count; frame++)
-          this.load.image(`${fruit}_h${skill}_${frame}`, Asset.fruitSkill(fruit, skill, frame));
-      }),
+    this.load.image(
+      "old_drunk_seated_idle_1",
+      Asset.oldDrunkSeated("idle", 1),
     );
-    for (let frame = 1; frame <= 5; frame++) {
-      this.load.image(`sube_defense_fx_${frame}`, Asset.subeDefenseFx(frame));
-      this.load.image(`sube_evasion_fx_${frame}`, Asset.subeEvasionFx(frame));
-    }
-    for (let frame = 1; frame <= 3; frame++)
-      this.load.image(`baku_h2_tiro${frame}`, Asset.fruitSkill("baku", 2, `tiro${frame}`));
-    for (const state of [
-      "idle",
-      "drink",
-      "sway",
-      "interact",
-      "heal",
-    ] as const) {
-      const count = state === "drink" ? 6 : state === "heal" ? 5 : 4;
-      for (let frame = 1; frame <= count; frame++)
-        this.load.image(
-          `old_drunk_seated_${state}_${frame}`,
-          Asset.oldDrunkSeated(state, frame),
-        );
-    }
-    Asset.shipFrames.forEach((path, index) =>
-      this.load.image(`ship_${index + 1}`, path),
-    );
-    Asset.beachFrames.forEach((path, index) =>
-      this.load.image(`beach_${index + 1}`, path),
-    );
-    Asset.iceFrames.forEach((path, index) =>
-      this.load.image(`ice_${index + 1}`, path),
-    );
-    treeIds.forEach((id) => this.load.image(`tree_${id}`, Asset.tree(id)));
-    for (const state of ["idle", "walk", "attack", "death"] as const)
-      for (let frame = 1; frame <= 6; frame++)
-        this.load.image(`ted_${state}_${frame}`, Asset.ted(state, frame));
-    for (const direction of ["Costa", "Lado"] as const)
-      for (let frame = 1; frame <= 5; frame++)
-        this.load.image(
-          `ted_idle_${direction}_${frame}`,
-          Asset.tedIdleDirectional(direction, frame),
-        );
-    for (const state of ["Idle", "Walking"] as const)
-      for (const direction of ["Frente", "Costa", "Lado"] as const)
-        for (let frame = 1; frame <= 4; frame++)
-          this.load.image(
-            `alvida_${state}_${direction}_${frame}`,
-            Asset.alvida(state, direction, frame),
-          );
-    for (let frame = 1; frame <= 3; frame++)
-      this.load.image(`alvida_Attack_${frame}`, Asset.alvidaAttack(frame));
-    for (const animation of ["idle", "walk"] as const)
-      for (const direction of ["down", "up", "side"] as const)
-        for (let frame = 1; frame <= (animation === "idle" ? 4 : 5); frame++)
-          this.load.image(
-            `buffalo_${animation}_${direction}_${frame}`,
-            Asset.buffalo(animation, direction, frame),
-          );
-    for (let frame = 1; frame <= 6; frame++)
-      this.load.image(
-        `buffalo_attack_${frame}`,
-        Asset.buffaloAttackDown(frame),
-      );
-    for (const animation of ["idle", "walk"] as const)
-      for (const direction of ["down", "up", "side"] as const)
-        for (let frame = 1; frame <= 6; frame++)
-          this.load.image(
-            `wapol_${animation}_${direction}_${frame}`,
-            Asset.wapol(animation, direction, frame),
-          );
-    for (let frame = 1; frame <= 6; frame++)
-      this.load.image(`wapol_attack_${frame}`, Asset.wapolAttack(frame));
   }
 
   create(): void {
     this.background = this.add
-      .tileSprite(800, 550, 1600, 1100, "ground")
+      .tileSprite(800, 550, 1600, 1100, "ship_1")
       .setDisplaySize(1600, 1100)
       .setTint(0x9bc479);
-    [
-      [300, 260],
-      [720, 310],
-      [1250, 240],
-      [260, 830],
-      [860, 850],
-      [1390, 760],
-    ].forEach(([x, y], index) =>
-      this.add
-        .image(x, y, `tree_${treeIds[index % treeIds.length]}`)
-        .setDisplaySize(230, 230)
-        .setOrigin(0.5, 0.82)
-        .setDepth(y)
-        .setName("forest-prop"),
-    );
     this.healingCounter = this.add
       .image(800, 470, "healing_counter")
       .setDisplaySize(440, 440)
@@ -195,11 +114,12 @@ export class WorldScene extends Phaser.Scene {
     );
     bridge.onSnapshot = (snapshot) => this.applySnapshot(snapshot);
     void this.renderCollisionDebug();
+    this.devLog("create complete", { width: this.scale.width, height: this.scale.height });
   }
 
   update(time: number): void {
     this.fillViewportBackground();
-    this.background?.setTexture(
+    this.setBackgroundTexture(
       this.area === "pirate_ship"
         ? `ship_${(Math.floor(time / 150) % 4) + 1}`
         : this.area === "beach_buffalo"
@@ -232,6 +152,104 @@ export class WorldScene extends Phaser.Scene {
       window.dispatchEvent(
         new CustomEvent("game-intent", { detail: { type: "attack" } }),
       );
+  }
+
+  /** HUD panels float over Phaser; this keeps the original stable backdrop filling the viewport. */
+  private devLog(message: string, detail?: unknown): void {
+    if (import.meta.env.DEV) console.info(`[Phaser World] ${message}`, detail ?? "");
+  }
+
+  private installDevelopmentLoaderLogging(): void {
+    if (!import.meta.env.DEV) return;
+    this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) =>
+      console.error("[Phaser World] asset failed", { key: file.key, src: file.src }),
+    );
+    this.load.on(Phaser.Loader.Events.COMPLETE, () =>
+      this.devLog("preload complete"),
+    );
+    this.devLog("preload start");
+  }
+
+  private setBackgroundTexture(texture: string): void {
+    if (this.textures.exists(texture)) this.background?.setTexture(texture);
+    else this.requestTexture(texture);
+  }
+
+  private requestTexture(key: string): void {
+    if (this.textures.exists(key) || this.queuedTextures.has(key)) return;
+    const source = this.sourceForTexture(key);
+    if (!source) return this.devLog("missing manifest entry", key);
+    this.queuedTextures.add(key);
+    this.load.image(key, source);
+    this.devLog("queued asset", { key, source });
+    if (!this.load.isLoading()) this.load.start();
+  }
+
+  private sourceForTexture(key: string): string | undefined {
+    if (key === "ground") return Asset.forestGround;
+    const background = /^(ship|beach|ice)_(\d+)$/.exec(key);
+    if (background) {
+      const [, type, index] = background;
+      return type === "ship"
+        ? Asset.shipFrames[Number(index) - 1]
+        : type === "beach"
+          ? Asset.beachFrames[Number(index) - 1]
+          : Asset.iceFrames[Number(index) - 1];
+    }
+    if (key.startsWith("tree_")) return Asset.tree(key.slice("tree_".length));
+    const ted = /^ted_(idle|walk|attack|death)_(\d+)$/.exec(key);
+    if (ted) return Asset.ted(ted[1] as "idle" | "walk" | "attack" | "death", Number(ted[2]));
+    const tedDirectional = /^ted_idle_(Costa|Lado)_(\d+)$/.exec(key);
+    if (tedDirectional)
+      return Asset.tedIdleDirectional(tedDirectional[1] as "Costa" | "Lado", Number(tedDirectional[2]));
+    const drunk = /^old_drunk_seated_(idle|drink|sway|interact|heal)_(\d+)$/.exec(key);
+    if (drunk)
+      return Asset.oldDrunkSeated(drunk[1] as "idle" | "drink" | "sway" | "interact" | "heal", Number(drunk[2]));
+    const alvida = /^alvida_(Idle|Walking)_(Frente|Costa|Lado)_(\d+)$/.exec(key);
+    if (alvida)
+      return Asset.alvida(alvida[1] as "Idle" | "Walking", alvida[2] as "Frente" | "Costa" | "Lado", Number(alvida[3]));
+    const alvidaAttack = /^alvida_Attack_(\d+)$/.exec(key);
+    if (alvidaAttack) return Asset.alvidaAttack(Number(alvidaAttack[1]));
+    const buffalo = /^buffalo_(idle|walk)_(down|up|side)_(\d+)$/.exec(key);
+    if (buffalo)
+      return Asset.buffalo(buffalo[1] as "idle" | "walk", buffalo[2] as "down" | "up" | "side", Number(buffalo[3]));
+    const buffaloAttack = /^buffalo_attack_(\d+)$/.exec(key);
+    if (buffaloAttack) return Asset.buffaloAttackDown(Number(buffaloAttack[1]));
+    const wapol = /^wapol_(idle|walk)_(down|up|side)_(\d+)$/.exec(key);
+    if (wapol)
+      return Asset.wapol(wapol[1] as "idle" | "walk", wapol[2] as "down" | "up" | "side", Number(wapol[3]));
+    const wapolAttack = /^wapol_attack_(\d+)$/.exec(key);
+    if (wapolAttack) return Asset.wapolAttack(Number(wapolAttack[1]));
+    const fruit = /^(sube|guro|baku)_h([123])_(.+)$/.exec(key);
+    if (fruit) return Asset.fruitSkill(fruit[1] as "sube" | "guro" | "baku", Number(fruit[2]), fruit[3]);
+    const defense = /^sube_defense_fx_(\d+)$/.exec(key);
+    if (defense) return Asset.subeDefenseFx(Number(defense[1]));
+    const evasion = /^sube_evasion_fx_(\d+)$/.exec(key);
+    if (evasion) return Asset.subeEvasionFx(Number(evasion[1]));
+    const cannon = /^baku_h2_tiro(\d+)$/.exec(key);
+    if (cannon) return Asset.fruitSkill("baku", 2, `tiro${cannon[1]}`);
+    return undefined;
+  }
+
+  private ensureForestProps(): void {
+    if (this.forestPropsCreated) {
+      this.children.list
+        .filter((child) => child.name === "forest-prop")
+        .forEach((child) => (child as Phaser.GameObjects.Image).setVisible(true));
+      return;
+    }
+    const unavailable = treeIds.filter((id) => !this.textures.exists(`tree_${id}`));
+    if (unavailable.length) {
+      unavailable.forEach((id) => this.requestTexture(`tree_${id}`));
+      return;
+    }
+    [
+      [300, 260], [720, 310], [1250, 240], [260, 830], [860, 850], [1390, 760],
+    ].forEach(([x, y], index) =>
+      this.add.image(x, y, `tree_${treeIds[index % treeIds.length]}`)
+        .setDisplaySize(230, 230).setOrigin(0.5, 0.82).setDepth(y).setName("forest-prop"),
+    );
+    this.forestPropsCreated = true;
   }
 
   /** HUD panels float over Phaser; this keeps the original stable backdrop filling the viewport. */
@@ -275,8 +293,11 @@ export class WorldScene extends Phaser.Scene {
           this.ted.sprite.setTint(0xc6ccdf);
         else this.ted.sprite.clearTint();
       }
-      if ((effects.baku_tank ?? 0) > Date.now())
-        this.ted.sprite.setTexture("baku_h2_6").setDisplaySize(150, 150);
+      if ((effects.baku_tank ?? 0) > Date.now()) {
+        if (this.textures.exists("baku_h2_6"))
+          this.ted.sprite.setTexture("baku_h2_6").setDisplaySize(150, 150);
+        else this.requestTexture("baku_h2_6");
+      }
       else this.ted.sprite.setDisplaySize(112, 112);
     }
     this.enemies.forEach(({ visual, healthBar, snapshot }) => {
@@ -317,6 +338,11 @@ export class WorldScene extends Phaser.Scene {
     if (!this.ted) return;
     const frames = fruit === "baku" && skill === 2 ? 6 : 5;
     const prefix = `${fruit}_h${skill}`;
+    if (!this.textures.exists(`${prefix}_1`)) {
+      for (let frame = 1; frame <= frames; frame++)
+        this.requestTexture(`${prefix}_${frame}`);
+      return;
+    }
     this.fruitFxTimer?.remove();
     this.fruitFx?.destroy();
     const fx = this.add
@@ -358,6 +384,11 @@ export class WorldScene extends Phaser.Scene {
   /** Sube Defense uses only the silver-shield source frames, centered on Ted. */
   private playSubeDefenseFx(): void {
     if (!this.ted) return;
+    if (!this.textures.exists("sube_defense_fx_1")) {
+      for (let frame = 1; frame <= 5; frame++)
+        this.requestTexture(`sube_defense_fx_${frame}`);
+      return;
+    }
     this.subeDefenseFx?.destroy();
     const fx = this.add
       .image(this.ted.sprite.x, this.ted.sprite.y - 56, "sube_defense_fx_1")
@@ -385,6 +416,11 @@ export class WorldScene extends Phaser.Scene {
   /** Sube Evasion uses only the dedicated word-and-wind source frames above Ted. */
   private playSubeEvasionFx(): void {
     if (!this.ted) return;
+    if (!this.textures.exists("sube_evasion_fx_1")) {
+      for (let frame = 1; frame <= 5; frame++)
+        this.requestTexture(`sube_evasion_fx_${frame}`);
+      return;
+    }
     this.subeEvasionFx?.destroy();
     const fx = this.add
       .image(this.ted.sprite.x, this.ted.sprite.y - 126, "sube_evasion_fx_1")
@@ -458,8 +494,10 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(renderedY)
       .setFlipX(frame.flipX);
     if (visual.lastTexture !== frame.texture) {
-      visual.sprite.setTexture(frame.texture);
-      visual.lastTexture = frame.texture;
+      if (this.textures.exists(frame.texture)) {
+        visual.sprite.setTexture(frame.texture);
+        visual.lastTexture = frame.texture;
+      } else this.requestTexture(frame.texture);
     }
   }
 
@@ -484,8 +522,7 @@ export class WorldScene extends Phaser.Scene {
       this.playSubeEvasionFx();
     if (this.area !== snapshot.area) {
       this.area = snapshot.area;
-      this.background
-        ?.setTexture(
+      this.setBackgroundTexture(
           this.area === "pirate_ship"
             ? "ship_1"
             : this.area === "beach_buffalo"
@@ -493,19 +530,17 @@ export class WorldScene extends Phaser.Scene {
               : this.area === "ice_mountain"
                 ? "ice_1"
                 : "ground",
-        )
-        .setTint(this.area === "forest_alvida" ? 0x9bc479 : 0xffffff);
-      this.syncWorldBounds();
-      this.children.list
-        .filter((child) => child.name === "forest-prop")
-        .forEach((child) =>
-          (child as Phaser.GameObjects.Image).setVisible(
-            this.area === "forest_alvida",
-          ),
         );
+      this.background?.setTint(this.area === "forest_alvida" ? 0x9bc479 : 0xffffff);
+      this.syncWorldBounds();
       this.healingCounter?.setVisible(this.area === "pirate_ship");
       void this.renderCollisionDebug();
     }
+    if (this.area === "forest_alvida") this.ensureForestProps();
+    else
+      this.children.list
+        .filter((child) => child.name === "forest-prop")
+        .forEach((child) => (child as Phaser.GameObjects.Image).setVisible(false));
     const alive = new Set(snapshot.enemies.map((enemy) => enemy.id));
     this.enemies.forEach(({ visual, healthBar }, id) => {
       if (!alive.has(id) || this.area === "pirate_ship") {
@@ -544,15 +579,20 @@ export class WorldScene extends Phaser.Scene {
     }
     const buffalo = enemy.type === "enemy_buffalo",
       wapol = enemy.type === "enemy_wapol";
+    const texture = wapol
+      ? "wapol_idle_down_1"
+      : buffalo
+        ? "buffalo_idle_down_1"
+        : "alvida_Idle_Frente_1";
+    if (!this.textures.exists(texture)) {
+      this.requestTexture(texture);
+      return;
+    }
     const sprite = this.add
       .image(
         enemy.x,
         enemy.y,
-        wapol
-          ? "wapol_idle_down_1"
-          : buffalo
-            ? "buffalo_idle_down_1"
-            : "alvida_Idle_Frente_1",
+        texture,
       )
       .setDisplaySize(
         wapol ? 190 : buffalo ? 165 : 118,
@@ -588,6 +628,11 @@ export class WorldScene extends Phaser.Scene {
   }
   private playCannonShot(entry: CombatFeedbackSnapshot): void {
     if (!this.ted || entry.endX === undefined || entry.endY === undefined) return;
+    if (!this.textures.exists("baku_h2_tiro1")) {
+      for (let frame = 1; frame <= 3; frame++)
+        this.requestTexture(`baku_h2_tiro${frame}`);
+      return;
+    }
     const shot = this.add
       .image(entry.x, entry.y, "baku_h2_tiro1")
       .setDisplaySize(110, 110)

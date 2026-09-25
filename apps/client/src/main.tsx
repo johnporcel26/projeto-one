@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { GameCanvas } from "./game/GameCanvas";
 import { bridge } from "./game/GameBridge";
 import { GameSocket } from "./network/GameSocket";
+import { serverApiUrl } from "./network/server-url";
 import { Hud } from "./components/hud/Hud";
 import { GameUiProvider, useGameUi } from "./ui/GameUiStore";
 import { AuthGateway } from "./auth/AuthGateway";
@@ -17,7 +18,7 @@ import "./styles.css";
 import "./theme/pirate-hud.css";
 const validate = async (token: string): Promise<boolean> => {
   try {
-    const response = await fetch("http://localhost:8787/api/auth/validate", {
+    const response = await fetch(serverApiUrl("/api/auth/validate"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
@@ -68,7 +69,7 @@ function GameApp({
       <Hud
         onIntent={(intent) => socket.intent(intent as never)}
         onLogout={async () => {
-          await fetch("http://localhost:8787/api/auth/logout", {
+          await fetch(serverApiUrl("/api/auth/logout"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ token }),

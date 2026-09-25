@@ -35,6 +35,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useGameUi, type PanelId } from "../../ui/GameUiStore";
+import { serverApiUrl } from "../../network/server-url";
 import { PremiumMarketPanel } from "./MarketPanel";
 import { CatalogPanel } from "./CatalogPanel";
 import { DepositPanel } from "./DepositPanel";
@@ -2255,7 +2256,7 @@ function PremiumPanel({
   useEffect(() => {
     const token = localStorage.getItem("project-one-session");
     if (!token) return;
-    void fetch("http://localhost:8787/api/shop/catalog", {
+    void fetch(serverApiUrl("/api/shop/catalog"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
@@ -2273,7 +2274,7 @@ function PremiumPanel({
     const token = localStorage.getItem("project-one-session");
     if (!token || pendingPurchase) return;
     setNotice("");
-    const response = await fetch("http://localhost:8787/api/shop/purchase", {
+    const response = await fetch(serverApiUrl("/api/shop/purchase"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, packageId }),
@@ -2292,7 +2293,7 @@ function PremiumPanel({
   const approveDevPurchase = async () => {
     const token = localStorage.getItem("project-one-session");
     if (!token || !pendingPurchase) return;
-    const response = await fetch("http://localhost:8787/api/shop/dev/approve", {
+    const response = await fetch(serverApiUrl("/api/shop/dev/approve"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, purchaseId: pendingPurchase }),
